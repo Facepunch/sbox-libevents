@@ -93,7 +93,7 @@ public sealed class StateMachineComponent : Component
 
 		if ( dispatch )
 		{
-			state.GameObject.DispatchGameEvent( new EnterStateEventArgs( state ) );
+			state.GameObject.Dispatch( new EnterStateEventArgs( state ) );
 		}
 	}
 
@@ -101,7 +101,7 @@ public sealed class StateMachineComponent : Component
 	{
 		if ( dispatch )
 		{
-			state.GameObject.DispatchGameEvent( new LeaveStateEventArgs( state ) );
+			state.GameObject.Dispatch( new LeaveStateEventArgs( state ) );
 		}
 
 		state.Enabled = false;
@@ -119,7 +119,7 @@ public sealed class StateMachineComponent : Component
 			return;
 		}
 
-		Scene.DispatchGameEvent( new UpdateStateEventArgs( current ) );
+		Scene.Dispatch( new UpdateStateEventArgs( current ) );
 
 		if ( NextState is not { } next || !(Time.Now >= NextStateTime) )
 		{

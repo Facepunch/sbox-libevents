@@ -13,24 +13,27 @@ public interface IGameEventHandler<in T>
 /// <summary>
 /// Helper for dispatching game events in a scene.
 /// </summary>
-public static class GameEvent<T>
+public static class GameEvent
 {
-	// ReSharper disable once StaticMemberInGenericType
-	private static IReadOnlyDictionary<Type, int>? HandlerOrdering { get; set; }
+	private static Dictionary<Type, IReadOnlyDictionary<Type, int>> HandlerOrderingCache { get; } = new();
 
 	/// <summary>
 	/// Notifies all <see cref="IGameEventHandler{T}"/> components that are within <paramref name="sender"/>,
 	/// with a payload of type <typeparamref name="T"/>.
 	/// </summary>
-	public static void Dispatch( GameObject sender, T eventArgs )
+	public static void Dispatch<T>( this GameObject sender, T eventArgs )
 	{
-		HandlerOrdering ??= GetHandlerOrdering();
-
-		var handlers = sender is Scene scene
+		var handlers = (sender is Scene scene
 			? scene.GetAllComponents<IGameEventHandler<T>>() // I think this is more efficient?
-			: sender.Components.GetAll<IGameEventHandler<T>>();
+			: sender.Components.GetAll<IGameEventHandler<T>>())
+			.ToArray();
 
-		foreach ( var handler in handlers.OrderBy( x => HandlerOrdering[x.GetType()] ) )
+		if ( !HandlerOrderingCache.TryGetValue( typeof(T), out var ordering ) || handlers.Any( x => !ordering.ContainsKey( x.GetType() ) ) )
+		{
+			ordering = HandlerOrderingCache[typeof(T)] = GetHandlerOrdering<T>();
+		}
+
+		foreach ( var handler in handlers.OrderBy( x => ordering[x.GetType()] ) )
 		{
 			handler.OnGameEvent( sender, eventArgs );
 		}
@@ -38,7 +41,7 @@ public static class GameEvent<T>
 
 	private static bool IsImplementingMethodName( string methodName )
 	{
-		if ( methodName == nameof(IGameEventHandler<T>.OnGameEvent) )
+		if ( methodName == nameof(IGameEventHandler<object>.OnGameEvent) )
 		{
 			return true;
 		}
@@ -46,7 +49,7 @@ public static class GameEvent<T>
 		return methodName.StartsWith( "Sandbox.Events.IGameEventHandler<" ) && methodName.EndsWith( ">.OnGameEvent" );
 	}
 
-	private static MethodDescription? GetImplementation( TypeDescription type )
+	private static MethodDescription? GetImplementation<T>( TypeDescription type )
 	{
 		foreach ( var method in type.Methods )
 		{
@@ -63,7 +66,7 @@ public static class GameEvent<T>
 		return null;
 	}
 
-	private static IReadOnlyDictionary<Type, int> GetHandlerOrdering()
+	private static IReadOnlyDictionary<Type, int> GetHandlerOrdering<T>()
 	{
 		var types = TypeLibrary.GetTypes<IGameEventHandler<T>>().ToArray();
 		var helper = new SortingHelper( types.Length );
@@ -71,7 +74,7 @@ public static class GameEvent<T>
 		for ( var i = 0; i < types.Length; ++i )
 		{
 			var type = types[i];
-			var method = GetImplementation( type );
+			var method = GetImplementation<T>( type );
 
 			if ( method is null )
 			{
