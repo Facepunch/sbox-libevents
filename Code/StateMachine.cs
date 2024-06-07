@@ -63,11 +63,17 @@ public sealed class StateMachineComponent : Component
 
 	private void EnableActiveStates( bool dispatch )
 	{
-		var active = CurrentState?.GetAncestorsIncludingSelf() ?? Array.Empty<StateComponent>();
+		var current = CurrentState;
+		var active = current?.GetAncestors() ?? Array.Empty<StateComponent>();
 		var activeSet = active.ToHashSet();
 
 		var toDeactivate = new Queue<StateComponent>( States.Where( x => x.Enabled && !activeSet.Contains( x ) ).Reverse() );
 		var toActivate = new Queue<StateComponent>( active.Where( x => !x.Enabled ) );
+
+		if ( current != null )
+		{
+			toActivate.Enqueue( current );
+		}
 
 		while ( toDeactivate.TryDequeue( out var next ) )
 		{

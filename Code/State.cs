@@ -38,13 +38,9 @@ public sealed class StateComponent : Component
 		StateMachine.Transition( DefaultNextState! );
 	}
 
-	/// <summary>
-	/// Gets all ancestor states up to and including this one, starting
-	/// with the outermost parent and ending with this state.
-	/// </summary>
-	public IReadOnlyList<StateComponent> GetAncestorsIncludingSelf()
+	internal IReadOnlyList<StateComponent> GetAncestors()
 	{
-		var list = new List<StateComponent> { this };
+		var list = new List<StateComponent>();
 
 		var parent = Parent;
 
