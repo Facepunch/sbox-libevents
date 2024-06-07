@@ -10,16 +10,25 @@ public interface IGameEventHandler<in T>
 	void OnGameEvent( GameObject sender, T eventArgs );
 }
 
+/// <summary>
+/// Helper for dispatching game events in a scene.
+/// </summary>
 public static class GameEvent<T>
 {
 	// ReSharper disable once StaticMemberInGenericType
 	private static IReadOnlyDictionary<Type, int>? HandlerOrdering { get; set; }
 
+	/// <summary>
+	/// Notifies all <see cref="IGameEventHandler{T}"/> components that are within <paramref name="sender"/>,
+	/// with a payload of type <typeparamref name="T"/>.
+	/// </summary>
 	public static void Dispatch( GameObject sender, T eventArgs )
 	{
 		HandlerOrdering ??= GetHandlerOrdering();
 
-		var handlers = sender.Scene.GetAllComponents<IGameEventHandler<T>>();
+		var handlers = sender is Scene scene
+			? scene.GetAllComponents<IGameEventHandler<T>>() // I think this is more efficient?
+			: sender.Components.GetAll<IGameEventHandler<T>>();
 
 		foreach ( var handler in handlers.OrderBy( x => HandlerOrdering[x.GetType()] ) )
 		{
