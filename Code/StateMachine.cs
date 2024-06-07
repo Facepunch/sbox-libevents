@@ -19,7 +19,10 @@ public sealed class StateMachineComponent : Component
 			if ( _currentStateGuid == value ) return;
 			_currentStateGuid = value;
 
-			EnableActiveStates( Networking.IsHost );
+			if ( !Networking.IsHost )
+			{
+				EnableActiveStates( false );
+			}
 		}
 	}
 
@@ -133,6 +136,8 @@ public sealed class StateMachineComponent : Component
 		}
 
 		CurrentState = next;
+
+		EnableActiveStates( true );
 	}
 
 	/// <summary>
