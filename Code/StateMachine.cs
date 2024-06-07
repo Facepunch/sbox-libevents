@@ -91,10 +91,6 @@ public sealed class StateMachineComponent : Component
 			return;
 		}
 
-		Scene.DispatchGameEvent( new LeaveStateEventArgs( current ) );
-
-		CurrentState = next;
-
 		if ( next.DefaultNextState is not null )
 		{
 			Transition( next.DefaultNextState, next.DefaultDuration );
@@ -104,7 +100,7 @@ public sealed class StateMachineComponent : Component
 			ClearTransition();
 		}
 
-		Scene.DispatchGameEvent( new EnterStateEventArgs( next ) );
+		CurrentState = next;
 	}
 
 	/// <summary>
@@ -128,67 +124,3 @@ public sealed class StateMachineComponent : Component
 		NextStateTime = float.PositiveInfinity;
 	}
 }
-
-[Title( "State" ), Category( "State Machines" )]
-public sealed class StateComponent : Component
-{
-	private StateMachineComponent? _stateMachine;
-
-	public StateMachineComponent StateMachine =>
-		_stateMachine ??= Components.GetInAncestorsOrSelf<StateMachineComponent>();
-
-	/// <summary>
-	/// Transition to this state by default.
-	/// </summary>
-	[Property]
-	public StateComponent? DefaultNextState { get; set; }
-
-	[Property, HideIf( nameof(DefaultNextState), null )]
-	public float DefaultDuration { get; set; }
-
-	internal void Disable()
-	{
-		if ( StateMachine.GameObject == GameObject )
-		{
-			Enabled = false;
-			return;
-		}
-
-		GameObject.Enabled = false;
-	}
-
-	internal void Enable()
-	{
-		if ( StateMachine.GameObject == GameObject )
-		{
-			Enabled = true;
-			return;
-		}
-
-		GameObject.Enabled = true;
-	}
-
-	/// <summary>
-	/// Queue up a transition to the given state. This will occur at the end of
-	/// a fixed update on the state machine.
-	/// </summary>
-	public void Transition( StateComponent next, float delaySeconds = 0f )
-	{
-		StateMachine.Transition( next, delaySeconds );
-	}
-}
-
-/// <summary>
-/// Event dispatched on the host when a <see cref="StateMachineComponent"/> changes state.
-/// </summary>
-public record EnterStateEventArgs( StateComponent State );
-
-/// <summary>
-/// Event dispatched on the host when a <see cref="StateMachineComponent"/> changes state.
-/// </summary>
-public record LeaveStateEventArgs( StateComponent State );
-
-/// <summary>
-/// Event dispatched on the host every fixed update while a <see cref="StateComponent"/> is active.
-/// </summary>
-public record UpdateStateEventArgs( StateComponent State );
