@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Sandbox.Diagnostics;
 
 namespace Sandbox.Events;
@@ -16,11 +17,9 @@ public sealed class StateMachineComponent : Component
 		set
 		{
 			if ( _currentStateGuid == value ) return;
-
-			var prev = _currentStateGuid;
 			_currentStateGuid = value;
 
-			OnCurrentStateGuidChanged( prev, value );
+			EnableActiveStates( Networking.IsHost );
 		}
 	}
 
@@ -47,29 +46,62 @@ public sealed class StateMachineComponent : Component
 
 	protected override void OnStart()
 	{
-		var current = CurrentState;
-
 		foreach ( var state in States )
 		{
-			if ( state.Active && state != current )
-			{
-				state.Disable();
-			}
+			state.Enabled = false;
+			state.GameObject.Enabled = state.GameObject == GameObject;
 		}
 
-		if ( Networking.IsHost && current is not null )
+		if ( Networking.IsHost && CurrentState is { } current )
 		{
-			Transition( current, 0f );
+			Transition( current );
 		}
 	}
 
-	private void OnCurrentStateGuidChanged( Guid oldValue, Guid newValue )
+	private void EnableActiveStates( bool dispatch )
 	{
-		var oldState = Scene.Directory.FindComponentByGuid( oldValue ) as StateComponent;
-		var newState = Scene.Directory.FindComponentByGuid( newValue ) as StateComponent;
+		var active = CurrentState?.GetAncestorsIncludingSelf() ?? Array.Empty<StateComponent>();
+		var activeSet = active.ToHashSet();
 
-		oldState?.Disable();
-		newState?.Enable();
+		var toDeactivate = new Queue<StateComponent>( States.Where( x => x.Enabled && !activeSet.Contains( x ) ).Reverse() );
+		var toActivate = new Queue<StateComponent>( active.Where( x => !x.Enabled ) );
+
+		while ( toDeactivate.TryDequeue( out var next ) )
+		{
+			Leave( next, dispatch );
+
+			if ( toDeactivate.All( x => x.GameObject != next.GameObject ) && toActivate.All( x => x.GameObject != next.GameObject ) )
+			{
+				next.GameObject.Enabled = false;
+			}
+		}
+
+		while ( toActivate.TryDequeue( out var next ) )
+		{
+			next.GameObject.Enabled = true;
+
+			Enter( next, dispatch );
+		}
+	}
+
+	private void Enter( StateComponent state, bool dispatch )
+	{
+		state.Enabled = true;
+
+		if ( dispatch )
+		{
+			state.GameObject.DispatchGameEvent( new EnterStateEventArgs( state ) );
+		}
+	}
+
+	private void Leave( StateComponent state, bool dispatch )
+	{
+		if ( dispatch )
+		{
+			state.GameObject.DispatchGameEvent( new LeaveStateEventArgs( state ) );
+		}
+
+		state.Enabled = false;
 	}
 
 	protected override void OnFixedUpdate()

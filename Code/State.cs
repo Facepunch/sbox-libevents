@@ -1,4 +1,5 @@
-﻿
+﻿using System.Collections.Generic;
+
 namespace Sandbox.Events;
 
 [Title( "State" ), Category( "State Machines" )]
@@ -9,7 +10,7 @@ public sealed class StateComponent : Component
 	public StateMachineComponent StateMachine =>
 		_stateMachine ??= Components.GetInAncestorsOrSelf<StateMachineComponent>();
 
-	public StateComponent Parent => Components.GetInAncestors<StateComponent>( true );
+	public StateComponent? Parent => Components.GetInAncestors<StateComponent>( true );
 
 	/// <summary>
 	/// Transition to this state by default.
@@ -19,44 +20,6 @@ public sealed class StateComponent : Component
 
 	[Property, HideIf( nameof( DefaultNextState ), null )]
 	public float DefaultDuration { get; set; }
-
-	internal void Disable()
-	{
-		if ( Networking.IsHost )
-		{
-			Scene.DispatchGameEvent( new LeaveStateEventArgs( this ) );
-		}
-
-		if ( StateMachine.GameObject == GameObject )
-		{
-			Enabled = false;
-		}
-		else
-		{
-			GameObject.Enabled = false;
-		}
-
-		// TODO: parents
-	}
-
-	internal void Enable()
-	{
-		if ( StateMachine.GameObject == GameObject )
-		{
-			Enabled = true;
-		}
-		else
-		{
-			GameObject.Enabled = true;
-		}
-
-		// TODO: parents
-
-		if ( Networking.IsHost )
-		{
-			Scene.DispatchGameEvent( new EnterStateEventArgs( this ) );
-		}
-	}
 
 	/// <summary>
 	/// Queue up a transition to the given state. This will occur at the end of
@@ -73,6 +36,27 @@ public sealed class StateComponent : Component
 	public void Transition()
 	{
 		StateMachine.Transition( DefaultNextState! );
+	}
+
+	/// <summary>
+	/// Gets all ancestor states up to and including this one, starting
+	/// with the outermost parent and ending with this state.
+	/// </summary>
+	public IReadOnlyList<StateComponent> GetAncestorsIncludingSelf()
+	{
+		var list = new List<StateComponent> { this };
+
+		var parent = Parent;
+
+		while ( parent != null )
+		{
+			list.Add( parent );
+			parent = parent.Parent;
+		}
+
+		list.Reverse();
+
+		return list;
 	}
 }
 
