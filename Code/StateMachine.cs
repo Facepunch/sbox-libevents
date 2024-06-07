@@ -1,17 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json.Serialization;
 using Sandbox.Diagnostics;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Sandbox.Events;
 
 [Title( "State Machine" ), Category( "State Machines" )]
 public sealed class StateMachineComponent : Component
 {
-	[HostSync, Change]
-	private Guid CurrentStateGuid { get; set; }
+	private Guid _currentStateGuid;
+
+	[HostSync]
+	private Guid CurrentStateGuid
+	{
+		get => _currentStateGuid;
+		set
+		{
+			if ( _currentStateGuid == value ) return;
+
+			var prev = _currentStateGuid;
+			_currentStateGuid = value;
+
+			OnCurrentStateGuidChanged( prev, value );
+		}
+	}
 
 	[HostSync]
 	private Guid NextStateGuid { get; set; }
@@ -19,11 +30,11 @@ public sealed class StateMachineComponent : Component
 	[HostSync]
 	public float NextStateTime { get; set; }
 
-	[Property, ReadOnly, JsonIgnore]
+	[Property]
 	public StateComponent? CurrentState
 	{
 		get => Scene.Directory.FindComponentByGuid( CurrentStateGuid ) as StateComponent;
-		private set => CurrentStateGuid = value?.Id ?? Guid.Empty;
+		set => CurrentStateGuid = value?.Id ?? Guid.Empty;
 	}
 
 	public StateComponent? NextState
@@ -34,22 +45,21 @@ public sealed class StateMachineComponent : Component
 
 	public IEnumerable<StateComponent> States => Components.GetAll<StateComponent>( FindMode.EverythingInSelfAndDescendants );
 
-	protected override void OnAwake()
+	protected override void OnStart()
 	{
-		var current = States.FirstOrDefault( x => x.Active );
+		var current = CurrentState;
 
 		foreach ( var state in States )
 		{
 			if ( state.Active && state != current )
 			{
-				Log.Warning( $"Only one state should be enabled on awake! ({state.GameObject.Name})" );
 				state.Disable();
 			}
 		}
 
 		if ( Networking.IsHost && current is not null )
 		{
-			Transition( current );
+			Transition( current, 0f );
 		}
 	}
 
@@ -120,7 +130,7 @@ public sealed class StateMachineComponent : Component
 }
 
 [Title( "State" ), Category( "State Machines" )]
-public abstract class StateComponent : Component
+public sealed class StateComponent : Component
 {
 	private StateMachineComponent? _stateMachine;
 

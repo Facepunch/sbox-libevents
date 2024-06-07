@@ -38,7 +38,7 @@ internal class SortingHelper
 
 		public bool Equals( SortConstraint other ) => EarlierIndex == other.EarlierIndex && LaterIndex == other.LaterIndex;
 
-		public override bool Equals( object obj ) => obj is SortConstraint other && Equals( other );
+		public override bool Equals( object? obj ) => obj is SortConstraint other && Equals( other );
 
 		public override int GetHashCode() => _hashCode;
 	}
