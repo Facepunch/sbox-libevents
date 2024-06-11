@@ -63,9 +63,8 @@ public static class GameEvent
 		foreach ( var method in type.Methods )
 		{
 			if ( method.IsStatic ) continue;
-			if ( method.Parameters.Length != 2 ) continue;
-			if ( method.Parameters[0].ParameterType != typeof( GameObject ) ) continue;
-			if ( method.Parameters[1].ParameterType != typeof( T ) ) continue;
+			if ( method.Parameters.Length != 1 ) continue;
+			if ( method.Parameters[0].ParameterType != typeof( T ) ) continue;
 
 			if ( !IsImplementingMethodName( method.Name ) ) continue;
 
