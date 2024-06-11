@@ -7,7 +7,7 @@ namespace Sandbox.Events;
 
 public interface IGameEventHandler<in T>
 {
-	void OnGameEvent( GameObject sender, T eventArgs );
+	void OnGameEvent( T eventArgs );
 }
 
 /// <summary>
@@ -18,14 +18,14 @@ public static class GameEvent
 	private static Dictionary<Type, IReadOnlyDictionary<Type, int>> HandlerOrderingCache { get; } = new();
 
 	/// <summary>
-	/// Notifies all <see cref="IGameEventHandler{T}"/> components that are within <paramref name="sender"/>,
+	/// Notifies all <see cref="IGameEventHandler{T}"/> components that are within <paramref name="root"/>,
 	/// with a payload of type <typeparamref name="T"/>.
 	/// </summary>
-	public static void Dispatch<T>( this GameObject sender, T eventArgs )
+	public static void Dispatch<T>( this GameObject root, T eventArgs )
 	{
-		var handlers = (sender is Scene scene
+		var handlers = (root is Scene scene
 			? scene.GetAllComponents<IGameEventHandler<T>>() // I think this is more efficient?
-			: sender.Components.GetAll<IGameEventHandler<T>>())
+			: root.Components.GetAll<IGameEventHandler<T>>())
 			.ToArray();
 
 		if ( !HandlerOrderingCache.TryGetValue( typeof(T), out var ordering ) || handlers.Any( x => !ordering.ContainsKey( x.GetType() ) ) )
@@ -35,7 +35,7 @@ public static class GameEvent
 
 		foreach ( var handler in handlers.OrderBy( x => ordering[x.GetType()] ) )
 		{
-			handler.OnGameEvent( sender, eventArgs );
+			handler.OnGameEvent( eventArgs );
 		}
 	}
 
