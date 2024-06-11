@@ -5,6 +5,19 @@ using Sandbox.Diagnostics;
 
 namespace Sandbox.Events;
 
+/// <summary>
+/// <para>
+/// A state machine containing a set of <see cref="StateComponent"/>s. The <see cref="GameObject"/> containing
+/// the currently active state will be enabled (including its ancestors), and all other objects containing states
+/// are disabled.
+/// </para>
+/// <para>
+/// The currently active state is controlled by the host, and synchronised over the network. When a transition occurs,
+/// a <see cref="LeaveStateEventArgs"/> is dispatched on the old state's containing object, followed by a
+/// <see cref="EnterStateEventArgs"/> event on the object containing the new state. These events are only dispatched
+/// on the host.
+/// </para>
+/// </summary>
 [Title( "State Machine" ), Category( "State Machines" )]
 public sealed class StateMachineComponent : Component
 {
@@ -29,9 +42,15 @@ public sealed class StateMachineComponent : Component
 	[HostSync]
 	private Guid NextStateGuid { get; set; }
 
+	/// <summary>
+	/// What time will we transition to <see cref="NextState"/>?
+	/// </summary>
 	[HostSync]
 	public float NextStateTime { get; set; }
 
+	/// <summary>
+	/// Which state is currently active?
+	/// </summary>
 	[Property]
 	public StateComponent? CurrentState
 	{
@@ -39,12 +58,18 @@ public sealed class StateMachineComponent : Component
 		set => CurrentStateGuid = value?.Id ?? Guid.Empty;
 	}
 
+	/// <summary>
+	/// Which state will we transition to next, at <see cref="NextStateTime"/>?
+	/// </summary>
 	public StateComponent? NextState
 	{
 		get => Scene.Directory.FindComponentByGuid( NextStateGuid ) as StateComponent;
 		private set => NextStateGuid = value?.Id ?? Guid.Empty;
 	}
 
+	/// <summary>
+	/// All states found on descendant objects.
+	/// </summary>
 	public IEnumerable<StateComponent> States => Components.GetAll<StateComponent>( FindMode.EverythingInSelfAndDescendants );
 
 	protected override void OnStart()
@@ -159,6 +184,10 @@ public sealed class StateMachineComponent : Component
 		NextStateTime = Time.Now + delaySeconds;
 	}
 
+	/// <summary>
+	/// Removes any pending transitions, so this state machine will remain in the
+	/// current state until another transition is queued with <see cref="Transition"/>.
+	/// </summary>
 	public void ClearTransition()
 	{
 		Assert.True( Networking.IsHost );

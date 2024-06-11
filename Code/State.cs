@@ -2,14 +2,27 @@
 
 namespace Sandbox.Events;
 
+/// <summary>
+/// Marks a <see cref="GameObject"/> as a state in a state machine. There must be a
+/// <see cref="StateMachineComponent"/> on an ancestor object for this to function.
+/// The object containing this state (and all ancestors) will be enabled when the state
+/// machine transitions to this state, and will disable again when this state is exited.
+/// States may be nested within each other.
+/// </summary>
 [Title( "State" ), Category( "State Machines" )]
 public sealed class StateComponent : Component
 {
 	private StateMachineComponent? _stateMachine;
 
+	/// <summary>
+	/// Which state machine does this state belong to?
+	/// </summary>
 	public StateMachineComponent StateMachine =>
 		_stateMachine ??= Components.GetInAncestorsOrSelf<StateMachineComponent>();
 
+	/// <summary>
+	/// Which state is this nested in, if any?
+	/// </summary>
 	public StateComponent? Parent => Components.GetInAncestors<StateComponent>( true );
 
 	/// <summary>
@@ -18,6 +31,9 @@ public sealed class StateComponent : Component
 	[Property]
 	public StateComponent? DefaultNextState { get; set; }
 
+	/// <summary>
+	/// If <see cref="DefaultNextState"/> is given, transition after this delay in seconds.
+	/// </summary>
 	[Property, HideIf( nameof( DefaultNextState ), null )]
 	public float DefaultDuration { get; set; }
 

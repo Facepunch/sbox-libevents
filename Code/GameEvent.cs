@@ -5,8 +5,17 @@ using System.Linq;
 
 namespace Sandbox.Events;
 
+/// <summary>
+/// Interface for components that handle game events with a payload of type <see cref="T"/>.
+/// </summary>
+/// <typeparam name="T">Event payload type.</typeparam>
 public interface IGameEventHandler<in T>
 {
+	/// <summary>
+	/// Called when an event with payload of type <see cref="T"/> is dispatched on a <see cref="GameObject"/>
+	/// that contains this component, including on a descendant.
+	/// </summary>
+	/// <param name="eventArgs">Event payload.</param>
 	void OnGameEvent( T eventArgs );
 }
 

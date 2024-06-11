@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Sandbox.Events;
 
@@ -14,33 +11,9 @@ namespace Sandbox.Events;
 /// </summary>
 internal class SortingHelper
 {
-	public struct SortConstraint : IEquatable<SortConstraint>
+	public record struct SortConstraint( int EarlierIndex, int LaterIndex )
 	{
-		public readonly int EarlierIndex;
-		public readonly int LaterIndex;
-
-		private readonly int _hashCode;
-
-		public bool IsZero => EarlierIndex == 0 && LaterIndex == 0;
-
-		public SortConstraint Complement => new SortConstraint( LaterIndex, EarlierIndex );
-
-		public SortConstraint( int earlierIndex, int laterIndex )
-		{
-			EarlierIndex = earlierIndex;
-			LaterIndex = laterIndex;
-
-			unchecked
-			{
-				_hashCode = (EarlierIndex * 397) ^ LaterIndex;
-			}
-		}
-
-		public bool Equals( SortConstraint other ) => EarlierIndex == other.EarlierIndex && LaterIndex == other.LaterIndex;
-
-		public override bool Equals( object? obj ) => obj is SortConstraint other && Equals( other );
-
-		public override int GetHashCode() => _hashCode;
+		public SortConstraint Complement => new ( LaterIndex, EarlierIndex );
 	}
 
 	private readonly int _itemCount;

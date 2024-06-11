@@ -25,7 +25,7 @@ public class DispatchTests
 		go.Components.Create<BeforeHandler>();
 		go.Components.Create<AfterHandler>();
 
-		scene.DispatchGameEvent( new ExampleEventArgs() );
+		scene.Dispatch( new ExampleEventArgs() );
 
 		Assert.IsTrue( go.Components.Get<EarlyHandler>().Index < go.Components.Get<Handler>().Index );
 		Assert.IsTrue( go.Components.Get<Handler>().Index < go.Components.Get<LateHandler>().Index );
@@ -58,53 +58,53 @@ public abstract class BaseHandler : Component
 
 public sealed class Handler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class EarlyHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[Early]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class LateHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[Late]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class BeforeHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[Before<Handler>]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class AfterHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[After<Handler>]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class BeforeEarlyHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[Before<EarlyHandler>]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class AfterEarlyHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[After<EarlyHandler>]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class BeforeLateHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[Before<LateHandler>]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
 
 public sealed class AfterLateHandler : BaseHandler, IGameEventHandler<ExampleEventArgs>
 {
 	[After<LateHandler>]
-	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( GameObject sender, ExampleEventArgs eventArgs ) => Handle( eventArgs );
+	void IGameEventHandler<ExampleEventArgs>.OnGameEvent( ExampleEventArgs eventArgs ) => Handle( eventArgs );
 }
