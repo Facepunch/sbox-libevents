@@ -147,3 +147,22 @@ public static class GameEvent
 			.ToImmutableDictionary( i => types[ordering[i]].TargetType, i => i );
 	}
 }
+
+public delegate void GameEventAction<in T>( T eventArgs );
+
+/// <summary>
+/// Base class for components that expose game events to Action Graph.
+/// </summary>
+public abstract class GameEventComponent<T> : Component, IGameEventHandler<T>
+{
+	/// <summary>
+	/// Action invoked when the <typeparamref name="T"/> event is dispatched.
+	/// </summary>
+	[Property]
+	public GameEventAction<T>? OnEvent { get; set; }
+
+	void IGameEventHandler<T>.OnGameEvent( T eventArgs )
+	{
+		OnEvent?.Invoke( eventArgs );
+	}
+}
