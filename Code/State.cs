@@ -125,14 +125,26 @@ public sealed class StateComponent : Component
 /// </summary>
 public record EnterStateEventArgs( StateComponent State );
 
+/// <inheritdoc cref="EnterStateEventArgs"/>
+[Title( "Enter State Event" ), Group( "State Machines" ), Icon( "electric_bolt" )]
+public sealed class EnterStateEventComponent : GameEventComponent<EnterStateEventArgs> { }
+
 /// <summary>
 /// Event dispatched on the host when a <see cref="StateMachineComponent"/> changes state.
 /// Only invoked on components on the same object as the old state.
 /// </summary>
 public record LeaveStateEventArgs( StateComponent State );
 
+/// <inheritdoc cref="LeaveStateEventArgs"/>
+[Title( "Leave State Event" ), Group( "State Machines" ), Icon( "electric_bolt" )]
+public sealed class LeaveStateEventComponent : GameEventComponent<LeaveStateEventArgs> { }
+
 /// <summary>
 /// Event dispatched on the host every fixed update while a <see cref="StateComponent"/> is active.
 /// Only invoked on components on the same object as the state.
 /// </summary>
 public record UpdateStateEventArgs( StateComponent State );
+
+/// <inheritdoc cref="UpdateStateEventArgs"/>
+[Title( "Update State Event" ), Group( "State Machines" ), Icon( "electric_bolt" )]
+public sealed class UpdateStateEventComponent : GameEventComponent<UpdateStateEventArgs> { }
