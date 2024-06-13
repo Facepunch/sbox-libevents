@@ -6,10 +6,16 @@ using System.Linq;
 namespace Sandbox.Events;
 
 /// <summary>
+/// Interface for event payloads that can be listened for by <see cref="IGameEventHandler{T}"/>s.
+/// </summary>
+public interface IGameEvent { }
+
+/// <summary>
 /// Interface for components that handle game events with a payload of type <see cref="T"/>.
 /// </summary>
 /// <typeparam name="T">Event payload type.</typeparam>
 public interface IGameEventHandler<in T>
+	where T : IGameEvent
 {
 	/// <summary>
 	/// Called when an event with payload of type <see cref="T"/> is dispatched on a <see cref="GameObject"/>
@@ -31,6 +37,7 @@ public static class GameEvent
 	/// with a payload of type <typeparamref name="T"/>.
 	/// </summary>
 	public static void Dispatch<T>( this GameObject root, T eventArgs )
+		where T : IGameEvent
 	{
 		var handlers = (root is Scene scene
 			? scene.GetAllComponents<IGameEventHandler<T>>() // I think this is more efficient?
@@ -50,7 +57,7 @@ public static class GameEvent
 
 	private static bool IsImplementingMethodName( string methodName )
 	{
-		if ( methodName == nameof(IGameEventHandler<object>.OnGameEvent) )
+		if ( methodName == nameof(IGameEventHandler<IGameEvent>.OnGameEvent) )
 		{
 			return true;
 		}
@@ -75,6 +82,7 @@ public static class GameEvent
 	}
 
 	private static IReadOnlyDictionary<Type, int> GetHandlerOrdering<T>()
+		where T : IGameEvent
 	{
 		var types = TypeLibrary.GetTypes<IGameEventHandler<T>>().ToArray();
 		var helper = new SortingHelper( types.Length );
@@ -148,12 +156,14 @@ public static class GameEvent
 	}
 }
 
-public delegate void GameEventAction<in T>( T eventArgs );
+public delegate void GameEventAction<in T>( T eventArgs )
+	where T : IGameEvent;
 
 /// <summary>
 /// Base class for components that expose game events to Action Graph.
 /// </summary>
 public abstract class GameEventComponent<T> : Component, IGameEventHandler<T>
+	where T : IGameEvent
 {
 	/// <summary>
 	/// Action invoked when the <typeparamref name="T"/> event is dispatched.
