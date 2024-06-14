@@ -2,13 +2,9 @@
 Easily dispatch events in your scene when stuff happens.
 
 ## Basics
-Declare an event type with all the properties you want to pass around.
+Declare an event type implementing `IGameEvent` with all the properties you want to pass around.
 ```csharp
-public record DamagedEventArgs(
-    GameObject Attacker,
-    GameObject Victim,
-    int Damage )
-    : IGameEvent;
+public record DamagedEvent( GameObject Attacker, GameObject Victim, int Damage ) : IGameEvent;
 ```
 Implement `IGameEventHandler<T>` for your custom event type in a `Component`.
 ```csharp
