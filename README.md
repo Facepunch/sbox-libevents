@@ -7,7 +7,7 @@ Declare an event type with all the properties you want to pass around.
 public record DamagedEventArgs(
     GameObject Attacker,
     GameObject Victim,
-    int Damage );
+    int Damage ) : IGameEvent;
 ```
 Implement `IGameEventHandler<T>` for your custom event type in a `Component`.
 ```csharp
