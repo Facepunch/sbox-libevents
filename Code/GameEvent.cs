@@ -32,6 +32,9 @@ public static class GameEvent
 {
 	private static Dictionary<Type, IReadOnlyDictionary<Type, int>> HandlerOrderingCache { get; } = new();
 
+	[field: ThreadStatic]
+	private static List<Exception> DispatchExceptions { get; set; }
+
 	/// <summary>
 	/// Notifies all <see cref="IGameEventHandler{T}"/> components that are within <paramref name="root"/>,
 	/// with a payload of type <typeparamref name="T"/>.
@@ -49,10 +52,33 @@ public static class GameEvent
 			ordering = HandlerOrderingCache[typeof(T)] = GetHandlerOrdering<T>();
 		}
 
+		DispatchExceptions ??= new();
+		DispatchExceptions.Clear();
+
 		foreach ( var handler in handlers.OrderBy( x => ordering[x.GetType()] ) )
 		{
-			handler.OnGameEvent( eventArgs );
+			try
+			{
+				handler.OnGameEvent( eventArgs );
+			}
+			catch ( Exception e )
+			{
+				DispatchExceptions.Add( e );
+			}
 		}
+
+		switch ( DispatchExceptions.Count )
+		{
+			case 1:
+				Log.Error( DispatchExceptions[0] );
+				break;
+
+			case > 1:
+				Log.Error( new AggregateException( DispatchExceptions ) );
+				break;
+		}
+
+		DispatchExceptions.Clear();
 	}
 
 	private static bool IsImplementingMethodName( string methodName )
