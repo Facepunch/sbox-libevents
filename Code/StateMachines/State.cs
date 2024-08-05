@@ -11,7 +11,7 @@ namespace Sandbox.Events;
 /// States may be nested within each other.
 /// </summary>
 [Title( "State" ), Category( "State Machines" )]
-public sealed class StateComponent : Component
+public sealed class StateComponent : Component, ITransitionSource
 {
 	private StateMachineComponent? _stateMachine;
 
@@ -55,6 +55,11 @@ public sealed class StateComponent : Component
 	/// </summary>
 	[Property]
 	public event Action? OnLeaveState;
+
+	public StateComponent()
+	{
+		_defaultTransition = new DefaultTransition( this );
+	}
 
 	internal void Enter( bool dispatch )
 	{
@@ -116,6 +121,22 @@ public sealed class StateComponent : Component
 		list.Reverse();
 
 		return list;
+	}
+
+	private record DefaultTransition( StateComponent State ) : ITransition
+	{
+		public StateComponent TargetState => State.DefaultNextState!;
+	}
+
+	private readonly DefaultTransition _defaultTransition;
+
+	IEnumerable<ITransition> ITransitionSource.Transitions
+	{
+		get
+		{
+			if ( DefaultNextState is null ) yield break;
+			yield return _defaultTransition;
+		}
 	}
 }
 

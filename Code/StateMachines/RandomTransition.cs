@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace Sandbox.Events;
 
 [Title( "Random Transition"), Icon( "casino" )]
-public sealed class RandomTransition : Component,
+public sealed class RandomTransition : Component, ITransitionSource,
 	IGameEventHandler<EnterStateEvent>
 {
-	public class Entry
+	public class Entry : ITransition
 	{
 		/// <summary>
 		/// State to transition to.
@@ -34,6 +35,8 @@ public sealed class RandomTransition : Component,
 
 		[JsonIgnore]
 		internal bool IsEnabled { get; set; }
+
+		StateComponent ITransition.TargetState => State!;
 	}
 
 	[Property]
@@ -72,4 +75,6 @@ public sealed class RandomTransition : Component,
 			}
 		}
 	}
+
+	IEnumerable<ITransition> ITransitionSource.Transitions => Entries.Where( x => x.State is not null );
 }
