@@ -39,19 +39,19 @@ public sealed class StateComponent : Component
 	public float DefaultDuration { get; set; }
 
 	/// <summary>
-	/// Event dispatched on the host when this state is entered.
+	/// Event dispatched on the owner when this state is entered.
 	/// </summary>
 	[Property]
 	public event Action? OnEnterState;
 
 	/// <summary>
-	/// Event dispatched on the host while this state is active.
+	/// Event dispatched on the owner while this state is active.
 	/// </summary>
 	[Property]
 	public event Action? OnUpdateState;
 
 	/// <summary>
-	/// Event dispatched on the host when this state is exited.
+	/// Event dispatched on the owner when this state is exited.
 	/// </summary>
 	[Property]
 	public event Action? OnLeaveState;
@@ -120,7 +120,7 @@ public sealed class StateComponent : Component
 }
 
 /// <summary>
-/// Event dispatched on the host when a <see cref="StateMachineComponent"/> changes state.
+/// Event dispatched on the owner when a <see cref="StateMachineComponent"/> changes state.
 /// Only invoked on components on the same object as the new state.
 /// </summary>
 public record EnterStateEvent( StateComponent State ) : IGameEvent;
@@ -130,7 +130,7 @@ public record EnterStateEvent( StateComponent State ) : IGameEvent;
 public sealed class EnterStateEventComponent : GameEventComponent<EnterStateEvent> { }
 
 /// <summary>
-/// Event dispatched on the host when a <see cref="StateMachineComponent"/> changes state.
+/// Event dispatched on the owner when a <see cref="StateMachineComponent"/> changes state.
 /// Only invoked on components on the same object as the old state.
 /// </summary>
 public record LeaveStateEvent( StateComponent State ) : IGameEvent;
@@ -140,7 +140,7 @@ public record LeaveStateEvent( StateComponent State ) : IGameEvent;
 public sealed class LeaveStateEventComponent : GameEventComponent<LeaveStateEvent> { }
 
 /// <summary>
-/// Event dispatched on the host every fixed update while a <see cref="StateComponent"/> is active.
+/// Event dispatched on the owner every fixed update while a <see cref="StateComponent"/> is active.
 /// Only invoked on components on the same object as the state.
 /// </summary>
 public record UpdateStateEvent( StateComponent State ) : IGameEvent;
