@@ -12,10 +12,10 @@ namespace Sandbox.Events;
 /// are disabled.
 /// </para>
 /// <para>
-/// The currently active state is controlled by the host, and synchronised over the network. When a transition occurs,
+/// The currently active state is controlled by the owner, and synchronised over the network. When a transition occurs,
 /// a <see cref="LeaveStateEvent"/> is dispatched on the old state's containing object, followed by a
 /// <see cref="EnterStateEvent"/> event on the object containing the new state. These events are only dispatched
-/// on the host.
+/// on the owner.
 /// </para>
 /// </summary>
 [Title( "State Machine" ), Category( "State Machines" )]
@@ -31,7 +31,7 @@ public sealed class StateMachineComponent : Component
 	/// <summary>
 	/// Which state is currently active?
 	/// </summary>
-	[Property, HostSync]
+	[Property, Sync]
 	public StateComponent? CurrentState
 	{
 		get => _currentState;
@@ -40,7 +40,7 @@ public sealed class StateMachineComponent : Component
 			if ( _currentState == value ) return;
 			_currentState = value;
 
-			if ( !Networking.IsHost )
+			if ( Network.IsProxy )
 			{
 				EnableActiveStates( false );
 			}
@@ -50,13 +50,13 @@ public sealed class StateMachineComponent : Component
 	/// <summary>
 	/// Which state will we transition to next, at <see cref="NextStateTime"/>?
 	/// </summary>
-	[HostSync]
+	[Sync]
 	public StateComponent? NextState { get; set; }
 
 	/// <summary>
 	/// What time will we transition to <see cref="NextState"/>?
 	/// </summary>
-	[HostSync]
+	[Sync]
 	public float NextStateTime { get; set; }
 
 	/// <summary>
@@ -72,7 +72,7 @@ public sealed class StateMachineComponent : Component
 			state.GameObject.Enabled = state.GameObject == GameObject;
 		}
 
-		if ( Networking.IsHost && CurrentState is { } current )
+		if ( !Network.IsProxy && CurrentState is { } current )
 		{
 			Transition( current );
 		}
@@ -112,7 +112,7 @@ public sealed class StateMachineComponent : Component
 
 	protected override void OnFixedUpdate()
 	{
-		if ( !Networking.IsHost )
+		if ( Network.IsProxy )
 		{
 			return;
 		}
@@ -155,7 +155,7 @@ public sealed class StateMachineComponent : Component
 	public void Transition( StateComponent next, float delaySeconds = 0f )
 	{
 		Assert.NotNull( next );
-		Assert.True( Networking.IsHost );
+		Assert.False( Network.IsProxy );
 
 		NextState = next;
 		NextStateTime = Time.Now + delaySeconds;
@@ -167,7 +167,7 @@ public sealed class StateMachineComponent : Component
 	/// </summary>
 	public void ClearTransition()
 	{
-		Assert.True( Networking.IsHost );
+		Assert.False( Network.IsProxy );
 
 		NextState = null;
 		NextStateTime = float.PositiveInfinity;
