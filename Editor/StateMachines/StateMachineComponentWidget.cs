@@ -1,4 +1,5 @@
-﻿using Editor;
+﻿using System.Linq;
+using Editor;
 using Sandbox.UI;
 using Button = Editor.Button;
 
@@ -25,6 +26,6 @@ public sealed class StateMachineComponentWidget : ComponentEditorWidget
 
 	private void OnOpenEditor()
 	{
-		Log.Info( "Hi!" );
+		StateMachineView.Open( SerializedObject.Targets.OfType<StateMachineComponent>().First() );
 	}
 }
