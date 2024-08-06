@@ -170,8 +170,6 @@ public class StateMachineView : GraphicsView
 				_stateItems.Add( state, item );
 				Add( item );
 			}
-
-			item.Position = state.Transform.LocalPosition;
 		}
 
 		foreach ( var (_, item) in _stateItems )

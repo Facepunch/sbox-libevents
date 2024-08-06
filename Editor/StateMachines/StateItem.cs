@@ -26,6 +26,7 @@ public sealed class StateItem : GraphicsItem
 		State = state;
 
 		Size = new Vector2( Radius * 2f, Radius * 2f );
+		Position = state.EditorPosition;
 
 		Movable = true;
 		Selectable = true;
@@ -66,14 +67,14 @@ public sealed class StateItem : GraphicsItem
 
 	protected override void OnMoved()
 	{
-		State.Transform.LocalPosition = Position.SnapToGrid( 32f );
+		State.EditorPosition = Position.SnapToGrid( 32f );
 
 		UpdatePosition();
 	}
 
 	public void UpdatePosition()
 	{
-		Position = State.Transform.LocalPosition;
+		Position = State.EditorPosition;
 
 		PositionChanged?.Invoke();
 	}

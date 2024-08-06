@@ -56,6 +56,9 @@ public sealed class StateComponent : Component, ITransitionSource
 	[Property]
 	public event Action? OnLeaveState;
 
+	[Property, Title( "Position" )]
+	public Vector2 EditorPosition { get; set; }
+
 	public StateComponent()
 	{
 		_defaultTransition = new DefaultTransition( this );
