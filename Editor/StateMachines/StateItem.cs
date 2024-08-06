@@ -8,7 +8,8 @@ public sealed class StateItem : GraphicsItem
 {
 	private readonly List<TransitionItem> _transitions = new();
 
-	public static Color PrimaryColor { get; } = Color.Parse( "#726BF5" )!.Value;
+	public static Color PrimaryColor { get; } = Color.Parse( "#5C79DB" )!.Value;
+	public static Color SelectedColor { get; } = Color.Parse( "#BCA5DB" )!.Value;
 
 	public StateMachineView View { get; }
 	public StateComponent State { get; }
@@ -25,20 +26,49 @@ public sealed class StateItem : GraphicsItem
 		State = state;
 
 		Size = new Vector2( Radius * 2f, Radius * 2f );
+
+		Movable = true;
+		Selectable = true;
+		HoverEvents = true;
+	}
+
+	public override bool Contains( Vector2 localPos )
+	{
+		return (LocalRect.Center - localPos).LengthSquared < Radius * Radius;
 	}
 
 	protected override void OnPaint()
 	{
-		Paint.SetPen( Color.White.WithAlpha( 0.75f ), 2f );
-		Paint.SetBrushRadial( LocalRect.Center - LocalRect.Size * 0.125f, Radius * 1.5f, PrimaryColor.Lighten( 0.5f ), PrimaryColor.Darken( 0.75f ) );
+		var borderColor = Selected || Hovered
+			? Color.White
+			: Color.White.Darken( 0.125f );
 
+		var fillColor = Selected
+			? SelectedColor
+			: Hovered ? Color.Lerp( PrimaryColor, SelectedColor, 0.5f )
+			: PrimaryColor;
+
+		Paint.SetBrushRadial( LocalRect.Center - LocalRect.Size * 0.125f, Radius * 1.5f, fillColor.Lighten( 0.5f ), fillColor.Darken( 0.75f ) );
+		Paint.DrawCircle( Size * 0.5f, Size );
+
+		Paint.SetPen( borderColor, Selected || Hovered ? 3f : 2f );
+		Paint.SetBrushRadial( LocalRect.Center, Radius, 0.75f, Color.Black.WithAlpha( 0f ), 1f, Color.Black.WithAlpha( 0.25f ) );
 		Paint.DrawCircle( Size * 0.5f, Size );
 
 		Paint.ClearBrush();
-		Paint.SetPen( Color.White );
+		Paint.SetFont( "roboto", 12f, 600 );
+		Paint.SetPen( Color.Black.WithAlpha( 0.5f ) );
+		Paint.DrawText( new Rect( 2f, 2f, Size.x, Size.y ), State.GameObject.Name );
 
-		Paint.SetFont( null, 12f, 600 );
+		Paint.SetPen( Color.White );
 		Paint.DrawText( new Rect( 0f, 0f, Size.x, Size.y ), State.GameObject.Name );
+	}
+
+	protected override void OnMoved()
+	{
+		State.Transform.LocalPosition = Position.SnapToGrid( 32f );
+
+		UpdatePosition();
 	}
 
 	public void UpdatePosition()

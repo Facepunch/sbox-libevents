@@ -54,7 +54,7 @@ public sealed class TransitionItem : GraphicsItem
 
 	public void Layout()
 	{
-		var rect = Rect.FromPoints( Source.Center, Target.Center ).Grow( 16f );
+		var rect = Rect.FromPoints( Source.Center, Target.Center ).Grow( 64f );
 
 		Position = rect.Position;
 		Size = rect.Size;
