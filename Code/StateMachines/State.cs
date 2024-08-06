@@ -11,7 +11,7 @@ namespace Sandbox.Events;
 /// States may be nested within each other.
 /// </summary>
 [Title( "State" ), Category( "State Machines" )]
-public sealed class StateComponent : Component, ITransitionSource
+public sealed class StateComponent : Component, ITransition
 {
 	private StateMachineComponent? _stateMachine;
 
@@ -56,13 +56,8 @@ public sealed class StateComponent : Component, ITransitionSource
 	[Property]
 	public event Action? OnLeaveState;
 
-	[Property, Title( "Position" )]
+	[Hide]
 	public Vector2 EditorPosition { get; set; }
-
-	public StateComponent()
-	{
-		_defaultTransition = new DefaultTransition( this );
-	}
 
 	internal void Enter( bool dispatch )
 	{
@@ -126,20 +121,12 @@ public sealed class StateComponent : Component, ITransitionSource
 		return list;
 	}
 
-	private record DefaultTransition( StateComponent State ) : ITransition
-	{
-		public StateComponent TargetState => State.DefaultNextState!;
-	}
+	StateComponent ITransition.Target => DefaultNextState;
 
-	private readonly DefaultTransition _defaultTransition;
-
-	IEnumerable<ITransition> ITransitionSource.Transitions
+	void ITransition.Remove()
 	{
-		get
-		{
-			if ( DefaultNextState is null ) yield break;
-			yield return _defaultTransition;
-		}
+		DefaultNextState = null;
+		DefaultDuration = 0f;
 	}
 }
 

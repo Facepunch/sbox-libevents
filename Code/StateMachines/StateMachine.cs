@@ -133,17 +133,8 @@ public sealed class StateMachineComponent : Component
 				return;
 			}
 
-			if ( next.DefaultNextState is not null )
-			{
-				Transition( next.DefaultNextState, next.DefaultDuration );
-			}
-			else
-			{
-				ClearTransition();
-			}
-
+			ClearTransition();
 			CurrentState = next;
-
 			EnableActiveStates( true );
 		}
 	}

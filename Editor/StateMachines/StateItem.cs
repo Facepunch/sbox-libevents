@@ -88,15 +88,14 @@ public sealed class StateItem : GraphicsItem
 
 		_transitions.Clear();
 
-		foreach ( var transitionSource in State.GameObject.Components.GetAll<ITransitionSource>( FindMode.EverythingInSelf ) )
+		foreach ( var transition in State.GameObject.Components.GetAll<ITransition>( FindMode.EverythingInSelf ) )
 		{
-			foreach ( var transition in transitionSource.Transitions )
-			{
-				var item = new TransitionItem( this, View.GetStateItem( transition.TargetState ) );
-				View.Add( item );
+			if ( transition.Target is not { } target ) continue;
 
-				_transitions.Add( item );
-			}
+			var item = new TransitionItem( this, View.GetStateItem( target ) );
+			View.Add( item );
+
+			_transitions.Add( item );
 		}
 	}
 }
