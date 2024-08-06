@@ -24,11 +24,6 @@ public sealed class RandomTransition : Component, ITransitionSource,
 		public float Weight { get; set; } = 1f;
 
 		/// <summary>
-		/// Optional delay before changing state if this transition is chosen.
-		/// </summary>
-		public float DelaySeconds { get; set; }
-
-		/// <summary>
 		/// Optional predicate to decide if this transition is enabled.
 		/// </summary>
 		public Func<bool>? Condition { get; set; }
@@ -70,7 +65,7 @@ public sealed class RandomTransition : Component, ITransitionSource,
 
 			if ( random <= 0f )
 			{
-				eventArgs.State.StateMachine.Transition( entry.State!, entry.DelaySeconds );
+				eventArgs.State.StateMachine.Transition( entry.State! );
 				break;
 			}
 		}
