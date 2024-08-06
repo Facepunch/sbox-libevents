@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Sandbox.Events;
 
@@ -38,13 +39,16 @@ public class ImmediateTransition : BaseTransition
 	/// <summary>
 	/// If multiple immediate transitions are valid, the one with the highest priority is chosen.
 	/// </summary>
-	[Property] public int Priority { get; set; }
+	[Property, ShowIf( nameof(ShowPriority), true )] public int Priority { get; set; }
 
 	/// <summary>
 	/// If multiple immediate transitions with the same <see cref="Priority"/> are valid,
 	/// a random one is chosen, weighted by this value.
 	/// </summary>
-	[Property] public float Weight { get; set; } = 1f;
+	[Property, ShowIf( nameof(ShowWeight), true )] public float Weight { get; set; } = 1f;
+
+	private bool ShowPriority => Components.GetAll<ImmediateTransition>( FindMode.EverythingInSelf ).Any( x => x != this );
+	private bool ShowWeight => Components.GetAll<ImmediateTransition>( FindMode.EverythingInSelf ).Any( x => x != this && x.Priority == Priority );
 }
 
 /// <summary>
