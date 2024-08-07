@@ -70,5 +70,13 @@ public class StateMachineEditorWindow : DockWindow
 	{
 
 	}
+
+	[Shortcut( "editor.save", "CTRL+S", ShortcutType.Window )]
+	public void Save()
+	{
+		var active = Views.FirstOrDefault( x => x is { IsValid: true, Visible: true } );
+
+		active?.StateMachine.Scene.Editor.Save( false );
+	}
 }
 

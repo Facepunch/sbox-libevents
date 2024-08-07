@@ -68,6 +68,7 @@ public sealed class StateItem : GraphicsItem
 	protected override void OnMoved()
 	{
 		State.EditorPosition = Position.SnapToGrid( 32f );
+		SceneEditorSession.Active.Scene.EditLog( "State Moved", State );
 
 		UpdatePosition();
 	}
