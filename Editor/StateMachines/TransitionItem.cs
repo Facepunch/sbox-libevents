@@ -22,7 +22,7 @@ public sealed class TransitionItem : GraphicsItem
 		Selectable = true;
 		HoverEvents = true;
 
-		ZIndex = 2;
+		ZIndex = -10;
 
 		Source.PositionChanged += OnStatePositionChanged;
 		Target.PositionChanged += OnStatePositionChanged;
@@ -103,23 +103,30 @@ public sealed class TransitionItem : GraphicsItem
 		return result;
 	}
 
-	private (string? Icon, string? Condition, int? Priority, float? Weight) GetLabelParts()
+	private enum TransitionKind
+	{
+		Default,
+		Condition,
+		Event
+	}
+
+	private (TransitionKind Kind, string? Icon, string? Title, int? Priority, float? Weight) GetLabelParts()
 	{
 		switch ( Transition )
 		{
 			case StateComponent state:
 				return state.DefaultDuration > 0f
-					? ("timer", $"After {FormatDuration( state.DefaultDuration )}", null, null)
-					: (null, null, null, null);
+					? (TransitionKind.Event, "timer", $"After {FormatDuration( state.DefaultDuration )}", null, null)
+					: (TransitionKind.Default, null, null, null, null);
 
 			case ImmediateTransition immediate:
 				return immediate.Condition.TryGetActionGraphImplementation( out var graph, out _ )
-					? (graph.Icon ?? "filter_alt", graph.Title, immediate.Priority, immediate.Weight)
-					: (null, null, immediate.Priority, immediate.Weight);
+					? (TransitionKind.Condition, graph.Icon ?? "filter_alt", graph.Title, immediate.Priority, immediate.Weight)
+					: (TransitionKind.Default, null, null, immediate.Priority, immediate.Weight);
 
 			case IGameEventTransition eventTransition:
 				var type = eventTransition.GameEventType;
-				return (type.Icon, type.Title, null, null);
+				return (TransitionKind.Event, type.Icon, type.Title, null, null);
 
 			default:
 				throw new NotImplementedException();
@@ -138,33 +145,45 @@ public sealed class TransitionItem : GraphicsItem
 			: Color.White.Darken( 0.125f );
 
 		Paint.SetPen( color, Selected || Hovered ? 6f : 4f );
-		Paint.DrawLine( start + tangent * 2f, end - tangent * 16f );
+		Paint.DrawLine( start + tangent * 12f, end - tangent * 16f );
 
 		Paint.ClearPen();
 		Paint.SetBrush( color );
 		Paint.DrawArrow( end - tangent * 16f, end, 12f );
 
-		Paint.ClearBrush();
-		Paint.SetPen( color );
-		Paint.SetFont( "roboto", 12f );
-
-		var (icon, condition, priority, weight) = GetLabelParts();
-
-		if ( condition is null )
-		{
-			return;
-		}
+		var (kind, icon, title, priority, weight) = GetLabelParts();
 
 		var mid = (start + end) * 0.5f;
 		var width = (end - start).Length;
 
-		if ( tangent.x < 0f )
-		{
-			tangent = -tangent;
-		}
-
 		Paint.Translate( mid );
 		Paint.Rotate( MathF.Atan2( tangent.y, tangent.x ) * 180f / MathF.PI );
+
+		switch ( kind )
+		{
+			case TransitionKind.Default:
+				Paint.ClearBrush();
+				Paint.SetPen( color, 4f );
+				Paint.DrawCircle( new Rect( -width * 0.5f - 10f, -10f, 20f, 20f ) );
+				break;
+
+			case TransitionKind.Condition:
+				Paint.DrawCircle( new Rect( -width * 0.5f - 11f, -11f, 22f, 22f ) );
+				break;
+
+			case TransitionKind.Event:
+				Paint.DrawRect( new Rect( -width * 0.5f - 10f, -8f, 20f, 16f ) );
+				break;
+		}
+
+		if ( tangent.x < 0f )
+		{
+			Paint.Rotate( 180f );
+		}
+
+		Paint.ClearBrush();
+		Paint.SetPen( color );
+		Paint.SetFont( "roboto", 12f );
 
 		var rect = new Rect( -width * 0.5f + 16f, -20f, width - 32f, 16f );
 
@@ -174,12 +193,15 @@ public sealed class TransitionItem : GraphicsItem
 		{
 			rect = rect.Shrink( 24f, 0f, 0f, 0f );
 
-			var textRect = Paint.MeasureText( rect, condition, textFlags );
+			var textRect = Paint.MeasureText( rect, title ?? "", textFlags );
 
 			Paint.DrawIcon( new Rect( textRect.Left - 24f, rect.Top, 16f, 16f ), icon, 16f );
 		}
 
-		Paint.DrawText( rect, condition, textFlags );
+		if ( title is not null )
+		{
+			Paint.DrawText( rect, title, textFlags );
+		}
 	}
 
 	public void Layout()
