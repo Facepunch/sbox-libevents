@@ -18,7 +18,7 @@ namespace Sandbox.Events;
 /// on the owner.
 /// </para>
 /// </summary>
-[Title( "State Machine" ), Category( "State Machines" )]
+[Title( "State Machine" ), Icon( "smart_toy" ), Category( "State Machines" )]
 public sealed class StateMachineComponent : Component
 {
 	private StateComponent? _currentState;

@@ -11,7 +11,7 @@ namespace Sandbox.Events;
 /// machine transitions to this state, and will disable again when this state is exited.
 /// States may be nested within each other.
 /// </summary>
-[Title( "State" ), Category( "State Machines" )]
+[Title( "State" ), Icon( "circle" ), Category( "State Machines" )]
 public sealed class StateComponent : Component
 {
 	private StateMachineComponent? _stateMachine;
@@ -50,9 +50,18 @@ public sealed class StateComponent : Component
 	[Property, Hide]
 	public Vector2 EditorPosition { get; set; }
 
+	private TimeSince _sinceEnter;
+
+	/// <summary>
+	/// How long since we entered this state?
+	/// </summary>
+	[ActionGraphInclude]
+	public float Time => Enabled ? _sinceEnter : 0f;
+
 	internal void Enter( bool dispatch )
 	{
 		Enabled = true;
+		_sinceEnter = 0f;
 
 		if ( dispatch )
 		{

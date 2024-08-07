@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Linq;
 using Editor;
+using Editor.NodeEditor;
 using Facepunch.ActionGraphs;
-using static Editor.Label;
 
 namespace Sandbox.Events.Editor;
 
-public sealed class TransitionItem : GraphicsItem, IContextMenuSource, IDeletable
+public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, IDeletable
 {
 	public TransitionComponent? Transition { get; }
 	public StateItem Source { get; }
@@ -61,7 +61,7 @@ public sealed class TransitionItem : GraphicsItem, IContextMenuSource, IDeletabl
 
 		var s = Vector2.Dot( localPos - start, tangent.Perpendicular );
 
-		return Math.Abs( s ) <= 8f;
+		return Math.Abs( s ) <= 24f;
 	}
 
 	private void OnStatePositionChanged()
@@ -285,12 +285,24 @@ public sealed class TransitionItem : GraphicsItem, IContextMenuSource, IDeletabl
 		}
 		else
 		{
-			menu.AddOption( "Add Condition", "add", action: () =>
+			menu.AddOption( "Add Condition", "question_mark", action: () =>
 			{
 				Transition.Condition = CreateGraph<Func<bool>>( "Condition" );
 				EditGraph( Transition.Condition );
 				Update();
 			} );
+
+			menu.AddMenu( "Add Delay", "timer" ).AddLineEdit( "Seconds", value: "1", autoFocus: true, onSubmit:
+				delayStr =>
+				{
+					if ( !float.TryParse( delayStr, out var seconds ) )
+					{
+						return;
+					}
+
+					Transition.Condition = CreateDelayGraph( seconds );
+					Update();
+				} );
 		}
 
 		menu.AddSeparator();
@@ -306,7 +318,7 @@ public sealed class TransitionItem : GraphicsItem, IContextMenuSource, IDeletabl
 		}
 		else
 		{
-			menu.AddOption( "Add Action", "add", action: () =>
+			menu.AddOption( "Add Action", "directions_run", action: () =>
 			{
 				Transition.Action = CreateGraph<Action>( "Action" );
 				EditGraph( Transition.Action );
@@ -320,4 +332,5 @@ public sealed class TransitionItem : GraphicsItem, IContextMenuSource, IDeletabl
 
 		menu.OpenAtCursor( true );
 	}
+
 }

@@ -2,6 +2,7 @@
 
 namespace Sandbox.Events;
 
+[Title( "Transition" ), Icon( "forward" ), Category( "State Machines" )]
 public sealed class TransitionComponent : Component
 {
 	/// <summary>
