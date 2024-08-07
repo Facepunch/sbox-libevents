@@ -114,7 +114,7 @@ public sealed class TransitionItem : GraphicsItem
 
 			case ImmediateTransition immediate:
 				return immediate.Condition.TryGetActionGraphImplementation( out var graph, out _ )
-					? (graph.Icon, graph.Title, immediate.Priority, immediate.Weight)
+					? (graph.Icon ?? "filter_alt", graph.Title, immediate.Priority, immediate.Weight)
 					: (null, null, immediate.Priority, immediate.Weight);
 
 			case IGameEventTransition eventTransition:
@@ -165,7 +165,21 @@ public sealed class TransitionItem : GraphicsItem
 
 		Paint.Translate( mid );
 		Paint.Rotate( MathF.Atan2( tangent.y, tangent.x ) * 180f / MathF.PI );
-		Paint.DrawText( new Rect( -width * 0.5f + 16f, -20f, width - 32f, 16f ), condition, TextFlag.CenterBottom | TextFlag.SingleLine );
+
+		var rect = new Rect( -width * 0.5f + 16f, -20f, width - 32f, 16f );
+
+		const TextFlag textFlags = TextFlag.CenterBottom | TextFlag.SingleLine;
+
+		if ( icon is not null )
+		{
+			rect = rect.Shrink( 24f, 0f, 0f, 0f );
+
+			var textRect = Paint.MeasureText( rect, condition, textFlags );
+
+			Paint.DrawIcon( new Rect( textRect.Left - 24f, rect.Top, 16f, 16f ), icon, 16f );
+		}
+
+		Paint.DrawText( rect, condition, textFlags );
 	}
 
 	public void Layout()
