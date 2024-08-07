@@ -18,4 +18,9 @@ public sealed class TransitionComponent : Component
 	/// Optional condition to evaluate.
 	/// </summary>
 	[Property, KeyProperty] public Func<bool>? Condition { get; set; }
+
+	/// <summary>
+	/// Action performed when this transition is taken.
+	/// </summary>
+	[Property, KeyProperty] public Action? Action { get; set; }
 }

@@ -1,20 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Editor;
+using Editor.NodeEditor;
 
 namespace Sandbox.Events.Editor;
 
-public sealed class StateItem : GraphicsItem
+public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 {
-	private readonly List<TransitionItem> _transitions = new();
-
 	public static Color PrimaryColor { get; } = Color.Parse( "#5C79DB" )!.Value;
 	public static Color InitialColor { get; } = Color.Parse( "#BCA5DB" )!.Value;
 
 	public StateMachineView View { get; }
 	public StateComponent State { get; }
-
-	public IEnumerable<TransitionItem> Transitions => _transitions;
 
 	public float Radius => 64f;
 
@@ -106,6 +104,50 @@ public sealed class StateItem : GraphicsItem
 		base.OnMouseMove( e );
 	}
 
+	private void UpdateTransitions()
+	{
+		foreach ( var transition in State.Transitions )
+		{
+			View.GetTransitionItem( transition )?.Update();
+		}
+	}
+
+	protected override void OnHoverEnter( GraphicsHoverEvent e )
+	{
+		base.OnHoverEnter( e );
+		UpdateTransitions();
+	}
+
+	protected override void OnHoverLeave( GraphicsHoverEvent e )
+	{
+		base.OnHoverLeave( e );
+		UpdateTransitions();
+	}
+
+	protected override void OnSelectionChanged()
+	{
+		base.OnSelectionChanged();
+		UpdateTransitions();
+	}
+
+	public void OnContextMenu( ContextMenuEvent e )
+	{
+		e.Accepted = true;
+		Selected = true;
+
+		var menu = new global::Editor.Menu();
+
+		menu.AddMenu( "Rename State", "edit" ).AddLineEdit( "Rename", State.GameObject.Name, onSubmit: value =>
+		{
+			State.GameObject.Name = value;
+			Update();
+		}, autoFocus: true );
+
+		menu.AddOption( "Delete State", "delete", action: Delete );
+
+		menu.OpenAtCursor( true );
+	}
+
 	protected override void OnMoved()
 	{
 		State.EditorPosition = Position.SnapToGrid( View.GridSize );
@@ -121,35 +163,32 @@ public sealed class StateItem : GraphicsItem
 		PositionChanged?.Invoke();
 	}
 
-	public void UpdateTransitions()
-	{
-		foreach ( var transition in _transitions )
-		{
-			transition.Destroy();
-		}
-
-		_transitions.Clear();
-
-		foreach ( var transition in State.Transitions )
-		{
-			if ( transition.Target is not { } target ) continue;
-
-			var item = new TransitionItem( transition, this, View.GetStateItem( target ) );
-			View.Add( item );
-
-			_transitions.Add( item );
-		}
-	}
-
 	protected override void OnDestroy()
 	{
 		base.OnDestroy();
 
-		foreach ( var transition in _transitions )
+		var transitions = View.Items.OfType<TransitionItem>()
+			.Where( x => x.Source == this || x.Target == this )
+			.ToArray();
+
+		foreach ( var transition in transitions )
 		{
 			transition.Destroy();
 		}
+	}
 
-		_transitions.Clear();
+	public void Delete()
+	{
+		var transitions = View.Items.OfType<TransitionItem>()
+			.Where( x => x.Source == this || x.Target == this )
+			.ToArray();
+
+		foreach ( var transition in transitions )
+		{
+			transition.Delete();
+		}
+
+		State.GameObject.Destroy();
+		Destroy();
 	}
 }

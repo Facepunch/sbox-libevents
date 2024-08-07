@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace Sandbox.Events;
 
@@ -31,19 +32,19 @@ public sealed class StateComponent : Component
 	/// <summary>
 	/// Event dispatched on the owner when this state is entered.
 	/// </summary>
-	[Property]
+	[Property, KeyProperty]
 	public event Action? OnEnterState;
 
 	/// <summary>
 	/// Event dispatched on the owner while this state is active.
 	/// </summary>
-	[Property]
+	[Property, KeyProperty]
 	public event Action? OnUpdateState;
 
 	/// <summary>
 	/// Event dispatched on the owner when this state is exited.
 	/// </summary>
-	[Property]
+	[Property, KeyProperty]
 	public event Action? OnLeaveState;
 
 	[Property, Hide]

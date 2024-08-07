@@ -3,8 +3,19 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 using Editor.NodeEditor;
+using static Sandbox.PhysicsContact;
 
 namespace Sandbox.Events.Editor;
+
+public interface IContextMenuSource
+{
+	void OnContextMenu( ContextMenuEvent e );
+}
+
+public interface IDeletable
+{
+	void Delete();
+}
 
 public class StateMachineView : GraphicsView
 {
@@ -42,8 +53,10 @@ public class StateMachineView : GraphicsView
 	private Vector2 _lastMouseScenePosition;
 
 	private readonly Dictionary<StateComponent, StateItem> _stateItems = new();
+	private readonly Dictionary<TransitionComponent, TransitionItem> _transitionItems = new();
 
 	private TransitionItem? _transitionPreview;
+	private bool _wasDraggingTransition;
 
 	public float GridSize => 32f;
 
@@ -124,15 +137,21 @@ public class StateMachineView : GraphicsView
 			if ( source.State.Transitions.All( x => x.Target != target.State ) )
 			{
 				var transition = _transitionPreview.Source.State.Components.Create<TransitionComponent>();
-
 				transition.Target = target.State;
 
-				_transitionPreview.Source.UpdateTransitions();
+				AddTransitionItem( transition );
 			}
 		}
 
-		_transitionPreview?.Destroy();
-		_transitionPreview = null;
+		if ( _transitionPreview is not null )
+		{
+			_transitionPreview?.Destroy();
+			_transitionPreview = null;
+
+			_wasDraggingTransition = true;
+
+			e.Accepted = true;
+		}
 	}
 
 	protected override void OnMouseMove( MouseEvent e )
@@ -184,21 +203,30 @@ public class StateMachineView : GraphicsView
 
 	protected override void OnContextMenu( ContextMenuEvent e )
 	{
-		var menu = new global::Editor.Menu();
-		var scenePos = ToScene( e.LocalPosition );
-
-		if ( GetItemAt( scenePos ) is not null )
+		if ( _wasDraggingTransition )
 		{
 			return;
 		}
 
+		var menu = new global::Editor.Menu();
+		var scenePos = ToScene( e.LocalPosition );
+
+		if ( GetItemAt( scenePos ) is IContextMenuSource source )
+		{
+			source.OnContextMenu( e );
+
+			if ( e.Accepted ) return;
+		}
+
 		e.Accepted = true;
 
-		menu.AddOption( "Create New State", action: () =>
+		// var createMenu = menu.AddMenu( "Create New State", "add" );
+
+		menu.AddLineEdit( "New State", placeholder: "Name", autoFocus: true, onSubmit: name =>
 		{
 			using var _ = StateMachine.Scene.Push();
 
-			var obj = new GameObject( true, "Unnamed" );
+			var obj = new GameObject( true, name ?? "Unnamed" );
 
 			obj.SetParent( StateMachine.GameObject, false );
 
@@ -211,19 +239,36 @@ public class StateMachineView : GraphicsView
 				StateMachine.CurrentState = state;
 			}
 
-			var item = new StateItem( this, state );
-
-			_stateItems.Add( state, item );
-
-			Add( item );
+			AddStateItem( state );
 		} );
 
 		menu.OpenAtCursor( true );
 	}
 
+	protected override void OnKeyPress( KeyEvent e )
+	{
+		base.OnKeyPress( e );
+
+		if ( e.Key == KeyCode.Delete )
+		{
+			e.Accepted = true;
+
+			var deletable = SelectedItems
+				.OfType<IDeletable>()
+				.ToArray();
+
+			foreach ( var item in deletable )
+			{
+				item.Delete();
+			}
+		}
+	}
+
 	[EditorEvent.Frame]
 	private void OnFrame()
 	{
+		_wasDraggingTransition = false;
+
 		var needsUpdate = false;
 
 		foreach ( var (state, item) in _stateItems )
@@ -233,14 +278,14 @@ public class StateMachineView : GraphicsView
 				needsUpdate = true;
 				break;
 			}
+		}
 
-			foreach ( var transItem in item.Transitions )
+		foreach ( var (transition, item) in _transitionItems )
+		{
+			if ( !transition.IsValid )
 			{
-				if ( !transItem.Transition.IsValid() )
-				{
-					needsUpdate = true;
-					break;
-				}
+				needsUpdate = true;
+				break;
 			}
 		}
 
@@ -252,35 +297,37 @@ public class StateMachineView : GraphicsView
 
 	public void UpdateItems()
 	{
-		var states = StateMachine.States.ToHashSet();
-
-		foreach ( var (state, item) in _stateItems )
-		{
-			if ( !states.Contains( state ) )
-			{
-				item.Destroy();
-			}
-		}
-
-		foreach ( var state in states )
-		{
-			if ( !_stateItems.TryGetValue( state, out var item ) )
-			{
-				item = new StateItem( this, state );
-				_stateItems.Add( state, item );
-				Add( item );
-			}
-		}
-
-		foreach ( var (_, item) in _stateItems )
-		{
-			item.UpdateTransitions();
-		}
+		ItemHelper<StateComponent, StateItem>.Update( this, StateMachine.States, _stateItems, AddStateItem );
+		ItemHelper<TransitionComponent, TransitionItem>.Update( this, StateMachine.States.SelectMany( x => x.Transitions ), _transitionItems, AddTransitionItem );
 	}
 
-	public StateItem GetStateItem( StateComponent state )
+	private void AddStateItem( StateComponent state )
 	{
-		return _stateItems[state];
+		var item = new StateItem( this, state );
+		_stateItems.Add( state, item );
+		Add( item );
+	}
+
+	private void AddTransitionItem( TransitionComponent transition )
+	{
+		var source = GetStateItem( transition.Source );
+		var target = GetStateItem( transition.Target );
+
+		if ( source is null || target is null ) return;
+
+		var item = new TransitionItem( transition, source, target );
+		_transitionItems.Add( transition, item );
+		Add( item );
+	}
+
+	public StateItem? GetStateItem( StateComponent state )
+	{
+		return _stateItems!.GetValueOrDefault( state );
+	}
+
+	public TransitionItem? GetTransitionItem( TransitionComponent transition )
+	{
+		return _transitionItems!.GetValueOrDefault( transition );
 	}
 
 	public void StartCreatingTransition( StateItem source )
@@ -288,7 +335,52 @@ public class StateMachineView : GraphicsView
 		_transitionPreview?.Destroy();
 
 		_transitionPreview = new TransitionItem( null, source, null );
+		_transitionPreview.TargetPosition = source.Center;
 
 		Add( _transitionPreview );
+	}
+
+	private static class ItemHelper<TComponent, TItem>
+		where TComponent : Component
+		where TItem : GraphicsItem
+	{
+		[ThreadStatic] private static HashSet<TComponent> SourceSet;
+		[ThreadStatic] private static List<TComponent> ToRemove;
+
+		public static void Update( GraphicsView view, IEnumerable<TComponent> source, Dictionary<TComponent, TItem> dict, Action<TComponent> add )
+		{
+			SourceSet ??= new HashSet<TComponent>();
+			SourceSet.Clear();
+
+			ToRemove ??= new List<TComponent>();
+			ToRemove.Clear();
+
+			foreach ( var component in source )
+			{
+				SourceSet.Add( component );
+			}
+
+			foreach ( var (state, item) in dict )
+			{
+				if ( !SourceSet.Contains( state ) )
+				{
+					item.Destroy();
+					ToRemove.Add( state );
+				}
+			}
+
+			foreach ( var removed in ToRemove )
+			{
+				dict.Remove( removed );
+			}
+
+			foreach ( var component in SourceSet )
+			{
+				if ( !dict.ContainsKey( component ) )
+				{
+					add( component );
+				}
+			}
+		}
 	}
 }

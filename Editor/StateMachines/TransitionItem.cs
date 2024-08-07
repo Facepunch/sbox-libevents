@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Linq;
 using Editor;
 using Facepunch.ActionGraphs;
-using Math = Facepunch.ActionGraphs.Nodes.Math;
+using static Editor.Label;
 
 namespace Sandbox.Events.Editor;
 
-public sealed class TransitionItem : GraphicsItem
+public sealed class TransitionItem : GraphicsItem, IContextMenuSource, IDeletable
 {
 	public TransitionComponent? Transition { get; }
 	public StateItem Source { get; }
@@ -121,16 +122,21 @@ public sealed class TransitionItem : GraphicsItem
 		Event
 	}
 
-	private (TransitionKind Kind, string? Icon, string? Title) GetLabelParts()
+	private TransitionKind GetTransitionKind()
 	{
-		if ( Transition is null )
+		if ( Transition?.Condition.TryGetActionGraphImplementation( out var graph, out _ ) is true )
 		{
-			return (TransitionKind.Default, null, null);
+			return TransitionKind.Conditional;
 		}
 
-		return Transition.Condition.TryGetActionGraphImplementation( out var graph, out _ )
-			? (TransitionKind.Conditional, graph.Icon ?? "filter_alt", graph.Title)
-			: (TransitionKind.Default, null, null);
+		return TransitionKind.Default;
+	}
+
+	private (string? Icon, string? Title) GetLabelParts( Delegate? deleg, string defaultIcon )
+	{
+		return deleg.TryGetActionGraphImplementation( out var graph, out _ )
+			? (string.IsNullOrEmpty( graph.Icon ) ? defaultIcon : graph.Icon, graph.Title)
+			: (null, null);
 	}
 
 	protected override void OnPaint()
@@ -140,18 +146,21 @@ public sealed class TransitionItem : GraphicsItem
 			return;
 		}
 
-		var color = Selected 
-			? Color.Yellow : Hovered
+		var selected = Selected || Source.Selected;
+		var hovered = Hovered || Source.Hovered;
+
+		var color = selected
+			? Color.Yellow : hovered
 			? Color.White : Color.White.Darken( 0.125f );
 
-		Paint.SetPen( color, Selected || Hovered ? 6f : 4f );
+		Paint.SetPen( color, selected || hovered ? 6f : 4f );
 		Paint.DrawLine( start + tangent * 12f, end - tangent * 16f );
 
 		Paint.ClearPen();
 		Paint.SetBrush( color );
 		Paint.DrawArrow( end - tangent * 16f, end, 12f );
 
-		var (kind, icon, title) = GetLabelParts();
+		var kind = GetTransitionKind();
 
 		var mid = (start + end) * 0.5f;
 		var width = (end - start).Length;
@@ -176,38 +185,44 @@ public sealed class TransitionItem : GraphicsItem
 				break;
 		}
 
-		var textFlags = TextFlag.SingleLine;
+		Paint.ClearBrush();
+		Paint.SetPen( color );
+		Paint.SetFont( "roboto", 12f );
+
+		var conditionRect = new Rect( -width * 0.5f + 16f, -24f, width - 32f, 20f );
+		var actionRect = new Rect( -width * 0.5f + 16f, 4f, width - 32f, 20f );
 
 		if ( tangent.x < 0f )
 		{
 			Paint.Rotate( 180f );
 
-			textFlags |= TextFlag.RightBottom;
+			DrawLabel( Transition?.Condition, "question_mark", conditionRect, TextFlag.SingleLine | TextFlag.RightBottom );
+			DrawLabel( Transition?.Action, "directions_run", actionRect, TextFlag.SingleLine | TextFlag.LeftTop );
 		}
 		else
 		{
-			textFlags |= TextFlag.LeftBottom;
+			DrawLabel( Transition?.Condition, "question_mark", conditionRect, TextFlag.SingleLine | TextFlag.LeftBottom );
+			DrawLabel( Transition?.Action, "directions_run", actionRect, TextFlag.SingleLine | TextFlag.RightTop );
 		}
+	}
 
-		Paint.ClearBrush();
-		Paint.SetPen( color );
-		Paint.SetFont( "roboto", 12f );
-
-		var rect = new Rect( -width * 0.5f + 16f, -20f, width - 32f, 16f );
+	private void DrawLabel( Delegate? deleg, string defaultIcon, Rect rect, TextFlag flags )
+	{
+		var (icon, title) = GetLabelParts( deleg, defaultIcon );
 
 		if ( icon is not null )
 		{
 			rect = rect.Shrink( 24f, 0f, 0f, 0f );
 
-			var textRect = Paint.MeasureText( rect, title ?? "", textFlags );
-			var iconRect = new Rect( textRect.Left - 24f, rect.Top - 4f, 20f, 20f );
+			var textRect = Paint.MeasureText( rect, title ?? "", flags );
+			var iconRect = new Rect( textRect.Left - 20f, rect.Top, 20f, 20f );
 
 			Paint.DrawIcon( iconRect, icon, 16f );
 		}
 
 		if ( title is not null )
 		{
-			Paint.DrawText( rect, title, textFlags );
+			Paint.DrawText( rect, title, flags );
 		}
 	}
 
@@ -219,5 +234,90 @@ public sealed class TransitionItem : GraphicsItem
 		Size = rect.Size;
 
 		Update();
+	}
+
+	public void Delete()
+	{
+		Transition!.Destroy();
+		Destroy();
+	}
+
+	private T CreateGraph<T>( string title )
+		where T : Delegate
+	{
+		var graph = ActionGraph.Create<T>( EditorNodeLibrary );
+		var inner = (ActionGraph)graph;
+
+		inner.Title = title;
+		inner.SetParameters(
+			inner.Inputs.Values.Concat( InputDefinition.Target( typeof( GameObject ), Transition!.GameObject ) ),
+			inner.Outputs.Values.ToArray() );
+
+		return graph;
+	}
+
+	private void EditGraph<T>( T action )
+		where T : Delegate
+	{
+		if ( action.TryGetActionGraphImplementation( out var graph, out _ ) )
+		{
+			EditorEvent.Run( "actiongraph.inspect", graph );
+		}
+	}
+
+	public void OnContextMenu( ContextMenuEvent e )
+	{
+		if ( Transition is null ) return;
+
+		e.Accepted = true;
+		Selected = true;
+
+		var menu = new global::Editor.Menu();
+
+		if ( Transition.Condition is not null )
+		{
+			menu.AddOption( "Edit Condition", "edit", action: () => EditGraph( Transition.Condition ) );
+			menu.AddOption( "Clear Condition", "clear", action: () =>
+			{
+				Transition.Condition = null;
+				Update();
+			} );
+		}
+		else
+		{
+			menu.AddOption( "Add Condition", "add", action: () =>
+			{
+				Transition.Condition = CreateGraph<Func<bool>>( "Condition" );
+				EditGraph( Transition.Condition );
+				Update();
+			} );
+		}
+
+		menu.AddSeparator();
+
+		if ( Transition.Action is not null )
+		{
+			menu.AddOption( "Edit Action", "edit", action: () => EditGraph( Transition.Action ) );
+			menu.AddOption( "Clear Action", "clear", action: () =>
+			{
+				Transition.Action = null;
+				Update();
+			} );
+		}
+		else
+		{
+			menu.AddOption( "Add Action", "add", action: () =>
+			{
+				Transition.Action = CreateGraph<Action>( "Action" );
+				EditGraph( Transition.Action );
+				Update();
+			} );
+		}
+
+		menu.AddSeparator();
+
+		menu.AddOption( "Delete Transition", "delete", action: Delete );
+
+		menu.OpenAtCursor( true );
 	}
 }
