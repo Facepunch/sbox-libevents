@@ -176,9 +176,17 @@ public sealed class TransitionItem : GraphicsItem
 				break;
 		}
 
+		var textFlags = TextFlag.SingleLine;
+
 		if ( tangent.x < 0f )
 		{
 			Paint.Rotate( 180f );
+
+			textFlags |= TextFlag.RightBottom;
+		}
+		else
+		{
+			textFlags |= TextFlag.LeftBottom;
 		}
 
 		Paint.ClearBrush();
@@ -187,15 +195,14 @@ public sealed class TransitionItem : GraphicsItem
 
 		var rect = new Rect( -width * 0.5f + 16f, -20f, width - 32f, 16f );
 
-		const TextFlag textFlags = TextFlag.CenterBottom | TextFlag.SingleLine;
-
 		if ( icon is not null )
 		{
 			rect = rect.Shrink( 24f, 0f, 0f, 0f );
 
 			var textRect = Paint.MeasureText( rect, title ?? "", textFlags );
+			var iconRect = new Rect( textRect.Left - 24f, rect.Top - 4f, 20f, 20f );
 
-			Paint.DrawIcon( new Rect( textRect.Left - 24f, rect.Top, 16f, 16f ), icon, 16f );
+			Paint.DrawIcon( iconRect, icon, 16f );
 		}
 
 		if ( title is not null )

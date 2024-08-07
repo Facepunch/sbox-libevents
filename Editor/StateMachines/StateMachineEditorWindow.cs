@@ -19,6 +19,8 @@ public class StateMachineEditorWindow : DockWindow
 		Parent = EditorWindow;
 		WindowFlags = WindowFlags.Dialog | WindowFlags.Customized | WindowFlags.CloseButton | WindowFlags.WindowSystemMenuHint | WindowFlags.WindowTitle | WindowFlags.MaximizeButton;
 
+		WindowTitle = "State Machine Editor";
+
 		SetWindowIcon( "smart_toy" );
 
 		AllWindows.Add( this );

@@ -51,6 +51,8 @@ public class StateMachineView : GraphicsView
 
 		Name = $"View:{stateMachine.Id}";
 
+		WindowTitle = $"{stateMachine.Scene.Name} - {stateMachine.GameObject.Name}";
+
 		SetBackgroundImage( "toolimages:/grapheditor/grapheditorbackgroundpattern_shader.png" );
 
 		Antialiasing = true;
