@@ -7,11 +7,12 @@ namespace Sandbox.Events.Editor;
 
 public sealed class TransitionItem : GraphicsItem
 {
-	public ITransition Transition { get; }
+	public TransitionComponent? Transition { get; }
 	public StateItem Source { get; }
-	public StateItem Target { get; }
+	public StateItem? Target { get; set; }
+	public Vector2 TargetPosition { get; set; }
 
-	public TransitionItem( ITransition transition, StateItem source, StateItem target )
+	public TransitionItem( TransitionComponent? transition, StateItem source, StateItem? target )
 		: base( null )
 	{
 		Transition = transition;
@@ -24,20 +25,30 @@ public sealed class TransitionItem : GraphicsItem
 
 		ZIndex = -10;
 
-		Source.PositionChanged += OnStatePositionChanged;
-		Target.PositionChanged += OnStatePositionChanged;
+		if ( Transition is not null )
+		{
+			Source.PositionChanged += OnStatePositionChanged;
+			Target!.PositionChanged += OnStatePositionChanged;
+		}
 
 		Layout();
 	}
 
 	protected override void OnDestroy()
 	{
+		if ( Transition is null ) return;
+
 		Source.PositionChanged -= OnStatePositionChanged;
-		Target.PositionChanged -= OnStatePositionChanged;
+		Target!.PositionChanged -= OnStatePositionChanged;
 	}
 
 	public override bool Contains( Vector2 localPos )
 	{
+		if ( Transition is null )
+		{
+			return false;
+		}
+
 		if ( GetLocalStartEnd() is not var (start, end, tangent) )
 		{
 			return false;
@@ -60,7 +71,7 @@ public sealed class TransitionItem : GraphicsItem
 	private (Vector2 Start, Vector2 End, Vector2 Tangent)? GetLocalStartEnd()
 	{
 		var sourceCenter = FromScene( Source.Center );
-		var targetCenter = FromScene( Target.Center );
+		var targetCenter = Target is null ? FromScene( TargetPosition ) : FromScene( Target.Center );
 
 		if ( (targetCenter - sourceCenter).IsNearZeroLength )
 		{
@@ -70,7 +81,7 @@ public sealed class TransitionItem : GraphicsItem
 		var tangent = (targetCenter - sourceCenter).Normal;
 
 		var start = sourceCenter + tangent * Source.Radius;
-		var end = targetCenter - tangent * Target.Radius;
+		var end = targetCenter - tangent * (Target?.Radius ?? 0f);
 
 		return (start, end, tangent);
 	}
@@ -106,31 +117,20 @@ public sealed class TransitionItem : GraphicsItem
 	private enum TransitionKind
 	{
 		Default,
-		Condition,
+		Conditional,
 		Event
 	}
 
-	private (TransitionKind Kind, string? Icon, string? Title, int? Priority, float? Weight) GetLabelParts()
+	private (TransitionKind Kind, string? Icon, string? Title) GetLabelParts()
 	{
-		switch ( Transition )
+		if ( Transition is null )
 		{
-			case StateComponent state:
-				return state.DefaultDuration > 0f
-					? (TransitionKind.Event, "timer", $"After {FormatDuration( state.DefaultDuration )}", null, null)
-					: (TransitionKind.Default, null, null, null, null);
-
-			case ImmediateTransition immediate:
-				return immediate.Condition.TryGetActionGraphImplementation( out var graph, out _ )
-					? (TransitionKind.Condition, graph.Icon ?? "filter_alt", graph.Title, immediate.Priority, immediate.Weight)
-					: (TransitionKind.Default, null, null, immediate.Priority, immediate.Weight);
-
-			case IGameEventTransition eventTransition:
-				var type = eventTransition.GameEventType;
-				return (TransitionKind.Event, type.Icon, type.Title, null, null);
-
-			default:
-				throw new NotImplementedException();
+			return (TransitionKind.Default, null, null);
 		}
+
+		return Transition.Condition.TryGetActionGraphImplementation( out var graph, out _ )
+			? (TransitionKind.Conditional, graph.Icon ?? "filter_alt", graph.Title)
+			: (TransitionKind.Default, null, null);
 	}
 
 	protected override void OnPaint()
@@ -140,9 +140,9 @@ public sealed class TransitionItem : GraphicsItem
 			return;
 		}
 
-		var color = Selected || Hovered
-			? Color.White
-			: Color.White.Darken( 0.125f );
+		var color = Selected 
+			? Color.Yellow : Hovered
+			? Color.White : Color.White.Darken( 0.125f );
 
 		Paint.SetPen( color, Selected || Hovered ? 6f : 4f );
 		Paint.DrawLine( start + tangent * 12f, end - tangent * 16f );
@@ -151,7 +151,7 @@ public sealed class TransitionItem : GraphicsItem
 		Paint.SetBrush( color );
 		Paint.DrawArrow( end - tangent * 16f, end, 12f );
 
-		var (kind, icon, title, priority, weight) = GetLabelParts();
+		var (kind, icon, title) = GetLabelParts();
 
 		var mid = (start + end) * 0.5f;
 		var width = (end - start).Length;
@@ -167,7 +167,7 @@ public sealed class TransitionItem : GraphicsItem
 				Paint.DrawCircle( new Rect( -width * 0.5f - 10f, -10f, 20f, 20f ) );
 				break;
 
-			case TransitionKind.Condition:
+			case TransitionKind.Conditional:
 				Paint.DrawCircle( new Rect( -width * 0.5f - 11f, -11f, 22f, 22f ) );
 				break;
 
@@ -213,7 +213,7 @@ public sealed class TransitionItem : GraphicsItem
 
 	public void Layout()
 	{
-		var rect = Rect.FromPoints( Source.Center, Target.Center ).Grow( 64f );
+		var rect = Rect.FromPoints( Source.Center, Target?.Center ?? TargetPosition ).Grow( 64f );
 
 		Position = rect.Position;
 		Size = rect.Size;

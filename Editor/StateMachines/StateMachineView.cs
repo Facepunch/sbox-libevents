@@ -43,6 +43,10 @@ public class StateMachineView : GraphicsView
 
 	private readonly Dictionary<StateComponent, StateItem> _stateItems = new();
 
+	private TransitionItem? _transitionPreview;
+
+	public float GridSize => 32f;
+
 	public StateMachineView( StateMachineComponent stateMachine, StateMachineEditorWindow window )
 		: base( null )
 	{
@@ -95,7 +99,7 @@ public class StateMachineView : GraphicsView
 
 		if ( e.RightMouseButton )
 		{
-			e.Accepted = true;
+			e.Accepted = GetItemAt( ToScene( e.LocalPosition ) ) is null;
 			return;
 		}
 
@@ -112,20 +116,39 @@ public class StateMachineView : GraphicsView
 		_selectionBox?.Destroy();
 		_selectionBox = null;
 		_dragging = false;
+
+		if ( _transitionPreview?.Target is { } target )
+		{
+			var source = _transitionPreview.Source;
+
+			if ( source.State.Transitions.All( x => x.Target != target.State ) )
+			{
+				var transition = _transitionPreview.Source.State.Components.Create<TransitionComponent>();
+
+				transition.Target = target.State;
+
+				_transitionPreview.Source.UpdateTransitions();
+			}
+		}
+
+		_transitionPreview?.Destroy();
+		_transitionPreview = null;
 	}
 
 	protected override void OnMouseMove( MouseEvent e )
 	{
+		var scenePos = ToScene( e.LocalPosition );
+
 		if ( _dragging && e.ButtonState.HasFlag( MouseButtons.Left ) )
 		{
 			if ( _selectionBox == null && !SelectedItems.Any() && !Items.Any( x => x.Hovered ) )
 			{
-				Add( _selectionBox = new GraphView.SelectionBox( ToScene( e.LocalPosition ), this ) );
+				Add( _selectionBox = new GraphView.SelectionBox( scenePos, this ) );
 			}
 
 			if ( _selectionBox != null )
 			{
-				_selectionBox.EndScene = ToScene( e.LocalPosition );
+				_selectionBox.EndScene = scenePos;
 			}
 		}
 		else if ( _dragging )
@@ -137,7 +160,7 @@ public class StateMachineView : GraphicsView
 
 		if ( e.ButtonState.HasFlag( MouseButtons.Middle ) ) // or space down?
 		{
-			var delta = ToScene( e.LocalPosition ) - _lastMouseScenePosition;
+			var delta = scenePos - _lastMouseScenePosition;
 			Translate( delta );
 			e.Accepted = true;
 			Cursor = CursorShape.ClosedHand;
@@ -147,9 +170,84 @@ public class StateMachineView : GraphicsView
 			Cursor = CursorShape.None;
 		}
 
+		if ( _transitionPreview.IsValid() )
+		{
+			_transitionPreview.TargetPosition = scenePos;
+			_transitionPreview.Target = GetItemAt( scenePos ) as StateItem;
+			_transitionPreview.Layout();
+		}
+
 		e.Accepted = true;
 
 		_lastMouseScenePosition = ToScene( e.LocalPosition );
+	}
+
+	protected override void OnContextMenu( ContextMenuEvent e )
+	{
+		var menu = new global::Editor.Menu();
+		var scenePos = ToScene( e.LocalPosition );
+
+		if ( GetItemAt( scenePos ) is not null )
+		{
+			return;
+		}
+
+		e.Accepted = true;
+
+		menu.AddOption( "Create New State", action: () =>
+		{
+			using var _ = StateMachine.Scene.Push();
+
+			var obj = new GameObject( true, "Unnamed" );
+
+			obj.SetParent( StateMachine.GameObject, false );
+
+			var state = obj.Components.Create<StateComponent>();
+
+			state.EditorPosition = scenePos.SnapToGrid( GridSize ) - 64f;
+
+			if ( !StateMachine.CurrentState.IsValid() )
+			{
+				StateMachine.CurrentState = state;
+			}
+
+			var item = new StateItem( this, state );
+
+			_stateItems.Add( state, item );
+
+			Add( item );
+		} );
+
+		menu.OpenAtCursor( true );
+	}
+
+	[EditorEvent.Frame]
+	private void OnFrame()
+	{
+		var needsUpdate = false;
+
+		foreach ( var (state, item) in _stateItems )
+		{
+			if ( !state.IsValid )
+			{
+				needsUpdate = true;
+				break;
+			}
+
+			foreach ( var transItem in item.Transitions )
+			{
+				if ( !transItem.Transition.IsValid() )
+				{
+					needsUpdate = true;
+					break;
+				}
+			}
+		}
+
+		if ( needsUpdate )
+		{
+			UpdateItems();
+		}
 	}
 
 	public void UpdateItems()
@@ -183,5 +281,14 @@ public class StateMachineView : GraphicsView
 	public StateItem GetStateItem( StateComponent state )
 	{
 		return _stateItems[state];
+	}
+
+	public void StartCreatingTransition( StateItem source )
+	{
+		_transitionPreview?.Destroy();
+
+		_transitionPreview = new TransitionItem( null, source, null );
+
+		Add( _transitionPreview );
 	}
 }

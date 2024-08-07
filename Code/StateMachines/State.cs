@@ -11,7 +11,7 @@ namespace Sandbox.Events;
 /// States may be nested within each other.
 /// </summary>
 [Title( "State" ), Category( "State Machines" )]
-public sealed class StateComponent : Component, ITransition
+public sealed class StateComponent : Component
 {
 	private StateMachineComponent? _stateMachine;
 
@@ -26,17 +26,7 @@ public sealed class StateComponent : Component, ITransition
 	/// </summary>
 	public StateComponent? Parent => Components.GetInAncestors<StateComponent>( true );
 
-	/// <summary>
-	/// Transition to this state by default.
-	/// </summary>
-	[Property]
-	public StateComponent? DefaultNextState { get; set; }
-
-	/// <summary>
-	/// If <see cref="DefaultNextState"/> is given, transition after this delay in seconds.
-	/// </summary>
-	[Property, HideIf( nameof( DefaultNextState ), null )]
-	public float DefaultDuration { get; set; }
+	public IEnumerable<TransitionComponent> Transitions => Components.GetAll<TransitionComponent>( FindMode.EverythingInSelf );
 
 	/// <summary>
 	/// Event dispatched on the owner when this state is entered.
@@ -56,7 +46,7 @@ public sealed class StateComponent : Component, ITransition
 	[Property]
 	public event Action? OnLeaveState;
 
-	[Hide]
+	[Property, Hide]
 	public Vector2 EditorPosition { get; set; }
 
 	internal void Enter( bool dispatch )
@@ -96,14 +86,6 @@ public sealed class StateComponent : Component, ITransition
 		StateMachine.Transition( next, delaySeconds );
 	}
 
-	/// <summary>
-	/// Queue up a transition to the default next state.
-	/// </summary>
-	public void Transition()
-	{
-		StateMachine.Transition( DefaultNextState! );
-	}
-
 	internal IReadOnlyList<StateComponent> GetAncestors()
 	{
 		var list = new List<StateComponent>();
@@ -120,8 +102,6 @@ public sealed class StateComponent : Component, ITransition
 
 		return list;
 	}
-
-	StateComponent ITransition.Target => DefaultNextState;
 }
 
 /// <summary>
