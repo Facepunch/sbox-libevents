@@ -6,8 +6,6 @@ namespace Sandbox.Events;
 public interface ITransition
 {
 	StateComponent? Target { get; }
-
-	void Remove();
 }
 
 public abstract class BaseTransition : Component, ITransition
@@ -21,11 +19,6 @@ public abstract class BaseTransition : Component, ITransition
 	/// The destination of this transition.
 	/// </summary>
 	[Property] public StateComponent Target { get; set; } = null!;
-
-	void ITransition.Remove()
-	{
-		Destroy();
-	}
 }
 
 public class ImmediateTransition : BaseTransition
@@ -51,11 +44,16 @@ public class ImmediateTransition : BaseTransition
 	private bool ShowWeight => Components.GetAll<ImmediateTransition>( FindMode.EverythingInSelf ).Any( x => x != this && x.Priority == Priority );
 }
 
+public interface IGameEventTransition : ITransition
+{
+	TypeDescription GameEventType { get; }
+}
+
 /// <summary>
 /// A transition that triggers after receiving an event of type <typeparamref name="T"/>.
 /// </summary>
 /// <typeparam name="T">Game event type to transition after.</typeparam>
-public class GameEventTransition<T> : BaseTransition
+public class GameEventTransition<T> : BaseTransition, IGameEventTransition
 	where T : IGameEvent
 {
 	/// <summary>
@@ -63,4 +61,6 @@ public class GameEventTransition<T> : BaseTransition
 	/// </summary>
 	[Property, KeyProperty]
 	public Predicate<T>? Condition { get; set; }
+
+	TypeDescription IGameEventTransition.GameEventType => TypeLibrary.GetType<T>();
 }

@@ -122,12 +122,6 @@ public sealed class StateComponent : Component, ITransition
 	}
 
 	StateComponent ITransition.Target => DefaultNextState;
-
-	void ITransition.Remove()
-	{
-		DefaultNextState = null;
-		DefaultDuration = 0f;
-	}
 }
 
 /// <summary>

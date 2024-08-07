@@ -92,7 +92,7 @@ public sealed class StateItem : GraphicsItem
 		{
 			if ( transition.Target is not { } target ) continue;
 
-			var item = new TransitionItem( this, View.GetStateItem( target ) );
+			var item = new TransitionItem( transition, this, View.GetStateItem( target ) );
 			View.Add( item );
 
 			_transitions.Add( item );
