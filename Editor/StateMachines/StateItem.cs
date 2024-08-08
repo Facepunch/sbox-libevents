@@ -19,6 +19,8 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 
 	private bool _rightMousePressed;
 
+	private int _lastHash;
+
 	public StateItem( StateMachineView view, StateComponent state )
 	{
 		View = view;
@@ -32,6 +34,8 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 		HoverEvents = true;
 	}
 
+	public override Rect BoundingRect => base.BoundingRect.Grow( 16f );
+
 	public override bool Contains( Vector2 localPos )
 	{
 		return (LocalRect.Center - localPos).LengthSquared < Radius * Radius;
@@ -43,7 +47,7 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 			? Color.Yellow : Hovered
 			? Color.White : Color.White.Darken( 0.125f );
 
-		var fillColor = State.StateMachine.CurrentState == State
+		var fillColor = State.StateMachine?.InitialState == State
 			? InitialColor
 			: PrimaryColor;
 
@@ -57,6 +61,12 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 		Paint.SetPen( borderColor, Selected || Hovered ? 3f : 2f );
 		Paint.SetBrushRadial( LocalRect.Center, Radius, 0.75f, Color.Black.WithAlpha( 0f ), 1f, Color.Black.WithAlpha( 0.25f ) );
 		Paint.DrawCircle( Size * 0.5f, Size );
+
+		if ( State.StateMachine?.CurrentState == State )
+		{
+			Paint.ClearBrush();
+			Paint.DrawCircle( Size * 0.5f, Size + 8f );
+		}
 
 		Paint.ClearBrush();
 		Paint.SetFont( "roboto", 12f, 600 );
@@ -178,6 +188,11 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 
 	public void Delete()
 	{
+		if ( State.StateMachine.InitialState == State )
+		{
+			State.StateMachine.InitialState = null;
+		}
+
 		var transitions = View.Items.OfType<TransitionItem>()
 			.Where( x => x.Source == this || x.Target == this )
 			.ToArray();
@@ -189,5 +204,14 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 
 		State.GameObject.Destroy();
 		Destroy();
+	}
+
+	public void Frame()
+	{
+		var hash = HashCode.Combine( State.StateMachine?.InitialState == State, State.StateMachine?.CurrentState == State );
+		if ( hash == _lastHash ) return;
+
+		_lastHash = hash;
+		Update();
 	}
 }

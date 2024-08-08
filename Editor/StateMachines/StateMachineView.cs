@@ -234,9 +234,9 @@ public class StateMachineView : GraphicsView
 
 			state.EditorPosition = scenePos.SnapToGrid( GridSize ) - 64f;
 
-			if ( !StateMachine.CurrentState.IsValid() )
+			if ( !StateMachine.InitialState.IsValid() )
 			{
-				StateMachine.CurrentState = state;
+				StateMachine.InitialState = state;
 			}
 
 			AddStateItem( state );
@@ -292,6 +292,13 @@ public class StateMachineView : GraphicsView
 		if ( needsUpdate )
 		{
 			UpdateItems();
+		}
+		else
+		{
+			foreach ( var item in _stateItems.Values )
+			{
+				item.Frame();
+			}
 		}
 	}
 

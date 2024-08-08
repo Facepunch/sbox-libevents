@@ -47,6 +47,9 @@ public sealed class StateMachineComponent : Component
 		}
 	}
 
+	[Property, Sync]
+	public StateComponent? InitialState { get; set; }
+
 	[Sync]
 	public StateComponent? NextState { get; set; }
 
@@ -63,9 +66,10 @@ public sealed class StateMachineComponent : Component
 			state.GameObject.Enabled = state.GameObject == GameObject;
 		}
 
-		if ( !Network.IsProxy && CurrentState is { } current )
+		if ( !Network.IsProxy && InitialState is { } initial )
 		{
-			Transition( current );
+			CurrentState = initial;
+			Transition( initial );
 		}
 	}
 
@@ -108,10 +112,7 @@ public sealed class StateMachineComponent : Component
 			return;
 		}
 
-		if ( CurrentState is not { } current )
-		{
-			return;
-		}
+		if ( CurrentState is not { } current ) return;
 
 		current.Update();
 
