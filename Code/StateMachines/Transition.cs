@@ -27,6 +27,7 @@ public sealed class TransitionComponent : Component, IComparable<TransitionCompo
 
 	public int CompareTo( TransitionComponent? other )
 	{
-		return (Condition is null).CompareTo( other?.Condition is null );
+		if ( other is null ) return 1;
+		return (Condition is null).CompareTo( other.Condition is null );
 	}
 }

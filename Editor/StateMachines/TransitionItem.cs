@@ -6,7 +6,7 @@ using Facepunch.ActionGraphs;
 
 namespace Sandbox.Events.Editor;
 
-public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, IDeletable
+public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, IDeletable, IComparable<TransitionItem>
 {
 	public TransitionComponent? Transition { get; }
 	public StateItem Source { get; }
@@ -71,6 +71,8 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 
 	private (Vector2 Start, Vector2 End, Vector2 Tangent)? GetLocalStartEnd()
 	{
+		var (index, count) = Source.View.GetTransitionPosition( this );
+
 		var sourceCenter = FromScene( Source.Center );
 		var targetCenter = Target is null ? FromScene( TargetPosition ) : FromScene( Target.Center );
 
@@ -80,11 +82,24 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 		}
 
 		var tangent = (targetCenter - sourceCenter).Normal;
+		var normal = tangent.Perpendicular;
 
-		var start = sourceCenter + tangent * Source.Radius;
-		var end = targetCenter - tangent * (Target?.Radius ?? 0f);
+		if ( Target is null || Target.State.Id.CompareTo( Source.State.Id ) < 0 )
+		{
+			normal = -normal;
+		}
 
-		return (start, end, tangent);
+		var maxWidth = Source.Radius * 2f;
+		var usedWidth = count * 24f;
+
+		var itemWidth = Math.Min( usedWidth, maxWidth ) / count;
+		var offset = (index - count * 0.5f + 0.5f) * itemWidth;
+		var curve = MathF.Sqrt( Source.Radius * Source.Radius - offset * offset );
+
+		var start = sourceCenter + tangent * curve;
+		var end = targetCenter - tangent * (Target is null ? 0f : curve);
+
+		return (start + offset * normal, end + offset * normal, tangent);
 	}
 
 	private string FormatDuration( float seconds )
@@ -146,7 +161,7 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 			return;
 		}
 
-		var selected = Selected || Source.Selected;
+		var selected = Selected || Source.Selected || Transition is null;
 		var hovered = Hovered || Source.Hovered;
 
 		var color = selected
@@ -154,13 +169,11 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 			? Color.White : Color.White.Darken( 0.125f );
 
 		Paint.SetPen( color, selected || hovered ? 6f : 4f );
-		Paint.DrawLine( start + tangent * 12f, end - tangent * 16f );
+		Paint.DrawLine( start, end - tangent * 16f );
 
 		Paint.ClearPen();
 		Paint.SetBrush( color );
 		Paint.DrawArrow( end - tangent * 16f, end, 12f );
-
-		var kind = GetTransitionKind();
 
 		var mid = (start + end) * 0.5f;
 		var width = (end - start).Length;
@@ -168,29 +181,12 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 		Paint.Translate( mid );
 		Paint.Rotate( MathF.Atan2( tangent.y, tangent.x ) * 180f / MathF.PI );
 
-		switch ( kind )
-		{
-			case TransitionKind.Default:
-				Paint.ClearBrush();
-				Paint.SetPen( color, 4f );
-				Paint.DrawCircle( new Rect( -width * 0.5f - 10f, -10f, 20f, 20f ) );
-				break;
-
-			case TransitionKind.Conditional:
-				Paint.DrawCircle( new Rect( -width * 0.5f - 11f, -11f, 22f, 22f ) );
-				break;
-
-			case TransitionKind.Event:
-				Paint.DrawRect( new Rect( -width * 0.5f - 10f, -8f, 20f, 16f ) );
-				break;
-		}
-
 		Paint.ClearBrush();
 		Paint.SetPen( color );
-		Paint.SetFont( "roboto", 12f );
+		Paint.SetFont( "roboto", 10f );
 
-		var conditionRect = new Rect( -width * 0.5f + 16f, -24f, width - 32f, 20f );
-		var actionRect = new Rect( -width * 0.5f + 16f, 4f, width - 32f, 20f );
+		var conditionRect = new Rect( -width * 0.5f + 16f, -20f, width - 32f, 16f );
+		var actionRect = new Rect( -width * 0.5f + 16f, 4f, width - 32f, 16f );
 
 		if ( tangent.x < 0f )
 		{
@@ -212,12 +208,12 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 
 		if ( icon is not null )
 		{
-			rect = rect.Shrink( 24f, 0f, 0f, 0f );
+			rect = rect.Shrink( 20f, 0f, 0f, 0f );
 
 			var textRect = Paint.MeasureText( rect, title ?? "", flags );
-			var iconRect = new Rect( textRect.Left - 20f, rect.Top, 20f, 20f );
+			var iconRect = new Rect( textRect.Left - 18f, rect.Top, 16f, 16f );
 
-			Paint.DrawIcon( iconRect, icon, 16f );
+			Paint.DrawIcon( iconRect, icon, 12f );
 		}
 
 		if ( title is not null )
@@ -333,4 +329,8 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 		menu.OpenAtCursor( true );
 	}
 
+	public int CompareTo( TransitionItem? other )
+	{
+		return Source.State.Id.CompareTo( other?.Source.State.Id ?? Guid.Empty );
+	}
 }

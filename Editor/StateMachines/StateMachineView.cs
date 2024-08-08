@@ -54,6 +54,7 @@ public class StateMachineView : GraphicsView
 
 	private readonly Dictionary<StateComponent, StateItem> _stateItems = new();
 	private readonly Dictionary<TransitionComponent, TransitionItem> _transitionItems = new();
+	private readonly Dictionary<StatePair, List<TransitionItem>> _neighboringTransitions = new( EqualityComparer<StatePair>.Default );
 
 	private TransitionItem? _transitionPreview;
 	private bool _wasDraggingTransition;
@@ -132,15 +133,11 @@ public class StateMachineView : GraphicsView
 
 		if ( _transitionPreview?.Target is { } target )
 		{
-			var source = _transitionPreview.Source;
+			var transition = _transitionPreview.Source.State.Components.Create<TransitionComponent>();
 
-			if ( source.State.Transitions.All( x => x.Target != target.State ) )
-			{
-				var transition = _transitionPreview.Source.State.Components.Create<TransitionComponent>();
-				transition.Target = target.State;
+			transition.Target = target.State;
 
-				AddTransitionItem( transition );
-			}
+			AddTransitionItem( transition );
 		}
 
 		if ( _transitionPreview is not null )
@@ -151,6 +148,8 @@ public class StateMachineView : GraphicsView
 			_wasDraggingTransition = true;
 
 			e.Accepted = true;
+
+			UpdateTransitionNeighbors();
 		}
 	}
 
@@ -191,8 +190,16 @@ public class StateMachineView : GraphicsView
 
 		if ( _transitionPreview.IsValid() )
 		{
+			var oldTarget = _transitionPreview.Target;
+
 			_transitionPreview.TargetPosition = scenePos;
 			_transitionPreview.Target = GetItemAt( scenePos ) as StateItem;
+
+			if ( oldTarget != _transitionPreview.Target )
+			{
+				UpdateTransitionNeighbors();
+			}
+
 			_transitionPreview.Layout();
 		}
 
@@ -302,10 +309,64 @@ public class StateMachineView : GraphicsView
 		}
 	}
 
+	private readonly struct StatePair : IEquatable<StatePair>
+	{
+		public StateComponent A { get; }
+		public StateComponent B { get; }
+
+		public StatePair( StateComponent a, StateComponent b )
+		{
+			A = a;
+			B = b;
+		}
+
+		public bool Equals( StatePair other )
+		{
+			return A == other.A && B == other.B || A == other.B && B == other.A;
+		}
+
+		public override int GetHashCode()
+		{
+			return A.GetHashCode() ^ B.GetHashCode();
+		}
+	}
+
 	public void UpdateItems()
 	{
 		ItemHelper<StateComponent, StateItem>.Update( this, StateMachine.States, _stateItems, AddStateItem );
-		ItemHelper<TransitionComponent, TransitionItem>.Update( this, StateMachine.States.SelectMany( x => x.Transitions ), _transitionItems, AddTransitionItem );
+		var transitionsChanged = ItemHelper<TransitionComponent, TransitionItem>.Update( this, StateMachine.States.SelectMany( x => x.Transitions ), _transitionItems, AddTransitionItem );
+
+		if ( transitionsChanged )
+		{
+			UpdateTransitionNeighbors();
+		}
+	}
+
+	private void UpdateTransitionNeighbors()
+	{
+		_neighboringTransitions.Clear();
+
+		foreach ( var item in Items.OfType<TransitionItem>().Where( x => x.Target is not null ) )
+		{
+			var key = new StatePair( item.Source.State, item.Target!.State );
+
+			if ( !_neighboringTransitions.TryGetValue( key, out var list ) )
+			{
+				_neighboringTransitions[key] = list = new List<TransitionItem>();
+			}
+
+			list.Add( item );
+		}
+
+		foreach ( var list in _neighboringTransitions.Values )
+		{
+			list.Sort();
+
+			foreach ( var item in list )
+			{
+				item.Update();
+			}
+		}
 	}
 
 	private void AddStateItem( StateComponent state )
@@ -337,12 +398,31 @@ public class StateMachineView : GraphicsView
 		return _transitionItems!.GetValueOrDefault( transition );
 	}
 
+	public (int Index, int Count) GetTransitionPosition( TransitionItem item )
+	{
+		if ( item.Target is null )
+		{
+			return (0, 1);
+		}
+
+		var key = new StatePair( item.Source.State, item.Target.State );
+
+		if ( !_neighboringTransitions.TryGetValue( key, out var list ) )
+		{
+			return (0, 1);
+		}
+
+		return (list.IndexOf( item ), list.Count);
+	}
+
 	public void StartCreatingTransition( StateItem source )
 	{
 		_transitionPreview?.Destroy();
 
-		_transitionPreview = new TransitionItem( null, source, null );
-		_transitionPreview.TargetPosition = source.Center;
+		_transitionPreview = new TransitionItem( null, source, null )
+		{
+			TargetPosition = source.Center
+		};
 
 		Add( _transitionPreview );
 	}
@@ -351,16 +431,18 @@ public class StateMachineView : GraphicsView
 		where TComponent : Component
 		where TItem : GraphicsItem
 	{
-		[ThreadStatic] private static HashSet<TComponent> SourceSet;
-		[ThreadStatic] private static List<TComponent> ToRemove;
+		[ThreadStatic] private static HashSet<TComponent>? SourceSet;
+		[ThreadStatic] private static List<TComponent>? ToRemove;
 
-		public static void Update( GraphicsView view, IEnumerable<TComponent> source, Dictionary<TComponent, TItem> dict, Action<TComponent> add )
+		public static bool Update( GraphicsView view, IEnumerable<TComponent> source, Dictionary<TComponent, TItem> dict, Action<TComponent> add )
 		{
 			SourceSet ??= new HashSet<TComponent>();
 			SourceSet.Clear();
 
 			ToRemove ??= new List<TComponent>();
 			ToRemove.Clear();
+
+			var changed = false;
 
 			foreach ( var component in source )
 			{
@@ -373,6 +455,8 @@ public class StateMachineView : GraphicsView
 				{
 					item.Destroy();
 					ToRemove.Add( state );
+
+					changed = true;
 				}
 			}
 
@@ -386,8 +470,12 @@ public class StateMachineView : GraphicsView
 				if ( !dict.ContainsKey( component ) )
 				{
 					add( component );
+
+					changed = true;
 				}
 			}
+
+			return changed;
 		}
 	}
 }
