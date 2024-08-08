@@ -146,6 +146,17 @@ public sealed class StateItem : GraphicsItem, IContextMenuSource, IDeletable
 
 		var menu = new global::Editor.Menu();
 
+		if ( State.StateMachine.InitialState != State )
+		{
+			menu.AddOption( "Make Initial State", "start", action: () =>
+			{
+				State.StateMachine.InitialState = State;
+				Update();
+			} );
+
+			menu.AddSeparator();
+		}
+
 		menu.AddMenu( "Rename State", "edit" ).AddLineEdit( "Rename", State.GameObject.Name, onSubmit: value =>
 		{
 			State.GameObject.Name = value;
