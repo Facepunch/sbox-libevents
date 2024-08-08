@@ -161,17 +161,22 @@ public sealed partial class TransitionItem : GraphicsItem, IContextMenuSource, I
 			return;
 		}
 
+		var normal = tangent.Perpendicular;
+
 		var selected = Selected || Source.Selected || Transition is null;
 		var hovered = Hovered || Source.Hovered;
+
+		var thickness = selected || hovered ? 6f : 4f;
+		var offset = thickness * 0.5f * normal;
 
 		var color = selected
 			? Color.Yellow : hovered
 			? Color.White : Color.White.Darken( 0.125f );
 
-		Paint.SetPen( color, selected || hovered ? 6f : 4f );
-		Paint.DrawLine( start, end - tangent * 16f );
-
 		Paint.ClearPen();
+		Paint.SetBrushLinear( start, end, color.Darken( 0.667f ), color );
+		Paint.DrawPolygon( start - offset, end - tangent * 14f - offset, end - tangent * 14f + offset, start + offset );
+
 		Paint.SetBrush( color );
 		Paint.DrawArrow( end - tangent * 16f, end, 12f );
 
