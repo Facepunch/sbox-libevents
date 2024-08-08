@@ -58,15 +58,21 @@ public sealed class StateComponent : Component
 	[ActionGraphInclude]
 	public float Time => Enabled ? _sinceEnter : 0f;
 
+	private TransitionComponent? _nextTransition;
+
 	internal void Enter( bool dispatch )
 	{
 		Enabled = true;
+
 		_sinceEnter = 0f;
+		_nextTransition = null;
 
 		if ( dispatch )
 		{
 			OnEnterState?.Invoke();
 			GameObject.Dispatch( new EnterStateEvent( this ) );
+
+			TestTransitions();
 		}
 	}
 
@@ -74,6 +80,8 @@ public sealed class StateComponent : Component
 	{
 		OnUpdateState?.Invoke();
 		Scene.Dispatch( new UpdateStateEvent( this ) );
+
+		TestTransitions();
 	}
 
 	internal void Leave( bool dispatch )
@@ -82,18 +90,53 @@ public sealed class StateComponent : Component
 		{
 			OnLeaveState?.Invoke();
 			GameObject.Dispatch( new LeaveStateEvent( this ) );
+
+			try
+			{
+				_nextTransition?.Action?.Invoke();
+			}
+			catch ( Exception e )
+			{
+				Log.Error( e );
+			}
 		}
 
 		Enabled = false;
+
+		_nextTransition = null;
 	}
 
-	/// <summary>
-	/// Queue up a transition to the given state. This will occur at the end of
-	/// a fixed update on the state machine.
-	/// </summary>
-	public void Transition( StateComponent next, float delaySeconds = 0f )
+	[ThreadStatic]
+	private static List<TransitionComponent>? TestTransitions_Active;
+
+	private void TestTransitions()
 	{
-		StateMachine.Transition( next, delaySeconds );
+		_nextTransition = null;
+
+		TestTransitions_Active ??= new List<TransitionComponent>();
+		TestTransitions_Active.Clear();
+
+		TestTransitions_Active.AddRange( Components.GetAll<TransitionComponent>( FindMode.EnabledInSelf ) );
+		TestTransitions_Active.Sort();
+
+		foreach ( var transition in TestTransitions_Active )
+		{
+			try
+			{
+				if ( transition.Condition?.Invoke() is false ) continue;
+			}
+			catch ( Exception e )
+			{
+				Log.Error( e );
+			}
+
+			_nextTransition = transition;
+
+			StateMachine.Transition( transition.Target );
+			break;
+		}
+
+		TestTransitions_Active.Clear();
 	}
 
 	internal IReadOnlyList<StateComponent> GetAncestors()

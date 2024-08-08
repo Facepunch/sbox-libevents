@@ -3,7 +3,7 @@
 namespace Sandbox.Events;
 
 [Title( "Transition" ), Icon( "forward" ), Category( "State Machines" )]
-public sealed class TransitionComponent : Component
+public sealed class TransitionComponent : Component, IComparable<TransitionComponent>
 {
 	/// <summary>
 	/// The state this transition is originating from.
@@ -24,4 +24,9 @@ public sealed class TransitionComponent : Component
 	/// Action performed when this transition is taken.
 	/// </summary>
 	[Property, KeyProperty] public Action? Action { get; set; }
+
+	public int CompareTo( TransitionComponent? other )
+	{
+		return (Condition is null).CompareTo( other?.Condition is null );
+	}
 }

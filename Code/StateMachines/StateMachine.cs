@@ -47,17 +47,8 @@ public sealed class StateMachineComponent : Component
 		}
 	}
 
-	/// <summary>
-	/// Which state will we transition to next, at <see cref="NextStateTime"/>?
-	/// </summary>
 	[Sync]
 	public StateComponent? NextState { get; set; }
-
-	/// <summary>
-	/// What time will we transition to <see cref="NextState"/>?
-	/// </summary>
-	[Sync]
-	public float NextStateTime { get; set; }
 
 	/// <summary>
 	/// All states found on descendant objects.
@@ -128,7 +119,7 @@ public sealed class StateMachineComponent : Component
 
 		while ( transitions++ < MaxInstantTransitions )
 		{
-			if ( NextState is not { } next || !(Time.Now >= NextStateTime) )
+			if ( NextState is not { } next )
 			{
 				return;
 			}
@@ -143,13 +134,12 @@ public sealed class StateMachineComponent : Component
 	/// Queue up a transition to the given state. This will occur at the end of
 	/// a fixed update on the state machine.
 	/// </summary>
-	public void Transition( StateComponent next, float delaySeconds = 0f )
+	public void Transition( StateComponent next )
 	{
 		Assert.NotNull( next );
 		Assert.False( Network.IsProxy );
 
 		NextState = next;
-		NextStateTime = Time.Now + delaySeconds;
 	}
 
 	/// <summary>
@@ -161,6 +151,5 @@ public sealed class StateMachineComponent : Component
 		Assert.False( Network.IsProxy );
 
 		NextState = null;
-		NextStateTime = float.PositiveInfinity;
 	}
 }
